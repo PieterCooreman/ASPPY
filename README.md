@@ -10,7 +10,7 @@ python -m ASP4.server [host] [port] [docroot]
 
 Example:
 
-[code]python -m ASP4.server 0.0.0.0 8080 www[/code]
+<code>python -m ASP4.server 0.0.0.0 8080 www</code>
 
 The server will serve both static files and .asp pages from the specified document root.
 
