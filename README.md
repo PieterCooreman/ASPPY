@@ -12,6 +12,8 @@ Example:
 
 <code>python -m ASP4.server 0.0.0.0 8080 www</code>
 
+This will run ASP4 on http://localhost:8080
+
 The server will serve both static files and .asp pages from the specified document root.
 
 ## Platform Support
