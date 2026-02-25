@@ -1,20 +1,6 @@
-# ASP4 - Python-based Classic ASP/VBScript runtime
+# ASP4 - Classic ASP/VBScript to Python Transpiler
 
-ASP4 is a Python-based webserver runtime that executes Classic ASP pages using VBScript. It provides compatibility with most VBScript built-in functions, the Classic ASP object model (Request, Response, Session, Application, Server and Error), and various COM components commonly used in legacy ASP applications.
-
-# Running ASP4
-
-Start the built-in server:
-
-python -m ASP4.server [host] [port] [docroot]
-
-Example:
-
-<code>python -m ASP4.server 0.0.0.0 8080 www</code>
-
-This will run ASP4 on http://localhost:8080
-
-The server will serve both static files and .asp pages from the specified document root.
+ASP4 is a Python-based runtime that executes Classic ASP (VBScript) pages. It provides compatibility with most VBScript built-in functions, the Classic ASP object model (Request, Response, Session, Application, Server), and various COM components commonly used in legacy ASP applications.
 
 ## Platform Support
 
@@ -267,6 +253,7 @@ The following Python libraries are required:
 | `Cookies` | NameValueCollection of cookies |
 | `ServerVariables` | NameValueCollection of server variables |
 | `TotalBytes` | Total bytes in request body |
+| `Files` | Collection of uploaded files |
 | `Request` (default) | Access to QueryString, Form, Cookies |
 
 ### Methods
@@ -274,6 +261,63 @@ The following Python libraries are required:
 | Method | Description |
 |--------|-------------|
 | `BinaryRead(count)` | Reads raw bytes from request body |
+
+### Request.Files Collection
+
+Access uploaded files from multipart form submissions.
+
+```vbscript
+' Iterate over all uploaded files
+For Each file In Request.Files
+    Response.Write(file.FileName)
+    Response.Write(file.Size)
+    Response.Write(file.ContentType)
+    ' Save to disk
+    file.SaveAs Server.MapPath("/uploads/" & file.FileName)
+Next
+
+' Access specific file
+Set f = Request.Files("myfile")
+If Not f Is Nothing Then
+    Response.Write f.Name
+    Response.Write f.FileName
+    Response.Write f.Size
+    Response.Write f.ContentType
+End If
+
+' Check if file exists
+If Request.Files.Exists("myfile") Then
+    ' File was uploaded
+End If
+
+' Get count
+Response.Write Request.Files.Count
+```
+
+#### UploadedFile Properties
+
+| Property | Description |
+|----------|-------------|
+| `Name` | Form field name |
+| `FileName` | Original filename |
+| `ContentType` | MIME content type |
+| `Size` | File size in bytes |
+
+#### UploadedFile Methods
+
+| Method | Description |
+|--------|-------------|
+| `SaveAs(path)` | Saves the file to disk |
+
+#### Files Collection Methods
+
+| Method | Description |
+|--------|-------------|
+| `Count` | Number of uploaded files |
+| `Exists(name)` | Checks if file with given name exists |
+| `Item(name)` | Gets uploaded file by name |
+| `Keys()` | Returns array of field names |
+| `Items()` | Returns array of UploadedFile objects |
 
 ---
 
@@ -714,3 +758,19 @@ End Sub
 </script>
 ```
 
+---
+
+# Running ASP4
+
+Start the built-in server:
+
+```bash
+python -m asp_py_runtime.server [host] [port] [docroot]
+```
+
+Example:
+```bash
+python -m asp_py_runtime.server 0.0.0.0 8080 web
+```
+
+The server will serve both static files and .asp pages from the specified document root.
