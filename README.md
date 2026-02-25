@@ -343,6 +343,7 @@ Response.Write Request.Files.Count
 | `AddHeader(name, value)` | Adds a custom header |
 | `AppendToLog(message)` | Appends to server log |
 | `Redirect(url)` | Redirects to another URL |
+| `File(path[, inline])` | Serves a file (inline=True for display, False for download) |
 
 ---
 
