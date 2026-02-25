@@ -30,7 +30,7 @@ def make_asp_error(request_path: str, exc: Exception) -> ASPError:
         src_line = lines[0] if lines else src_block
 
     number = 0x80004005
-    category = "Microsoft VBScript runtime error" # Default to runtime error
+    category = "ASP4 runtime error" # Default to runtime error
     description = str(exc)
 
     if isinstance(exc, VBScriptError):
@@ -43,14 +43,14 @@ def make_asp_error(request_path: str, exc: Exception) -> ASPError:
         # Distinguish compilation vs runtime if possible
         # VBScriptCompilationError is a subclass of VBScriptError
         if "Compilation" in exc.__class__.__name__:
-             category = "Microsoft VBScript compilation error"
+             category = "ASP4 compilation error"
         else:
-             category = "Microsoft VBScript runtime error"
+             category = "ASP4 runtime error"
 
     elif isinstance(exc, (ParseError, LexerError)):
         # IIS: 800a03ea = VBScript compilation error (syntax)
         number = 0x800A03EA
-        category = "Microsoft VBScript compilation error"
+        category = "ASP4 compilation error"
 
     else:
         # Default fallback for unknown python exceptions, but let's try to mimic
@@ -60,7 +60,7 @@ def make_asp_error(request_path: str, exc: Exception) -> ASPError:
         # and use a generic error code if we don't have one, or just keep asp.py
         # BUT the user specifically complained about "asp.py".
         # So let's force the category for standard exceptions too.
-        category = "Microsoft VBScript runtime error"
+        category = "ASP4 runtime error"
         # 80004005 is "Unspecified error", which is standard for unmapped errors.
 
     return ASPError(
