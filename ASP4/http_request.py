@@ -59,7 +59,60 @@ class NameValueCollection:
         # For Each over collection yields keys
         return iter(self._m.keys())
 
+class UploadedFile:
+    def __init__(self, name: str, filename: str, content_type: str, data: bytes):
+        self.Name = name
+        self.FileName = filename
+        self.ContentType = content_type
+        self._data = data
+        self.Size = len(data)
 
+    def SaveAs(self, path: str):
+        with open(path, 'wb') as f:
+            f.write(self._data)
+
+    def __str__(self):
+        return self.FileName
+
+
+class UploadedFilesCollection  :
+    def __init__(self, files: dict):
+        # dict[str, UploadedFile]
+        self._files = files or {}
+        self._kmap = {k.lower(): k for k in self._files}
+
+    @property
+    def Count(self):
+        return len(self._files)
+
+    def Exists(self, key) -> bool:
+        return str(key).lower() in self._kmap
+
+    def Item(self, key):
+        k = str(key).lower()
+        if k in self._kmap:
+            return self._files[self._kmap[k]]
+        return None
+
+    def Items(self):
+        from .vm.values import VBArray
+        items = list(self._files.values())
+        if not items:
+            return VBArray([-1], allocated=True, dynamic=True)
+        arr = VBArray([len(items) - 1], allocated=True, dynamic=True)
+        for i, v in enumerate(items):
+            arr._items[i] = v
+        return arr
+
+    def Keys(self):
+        return list(self._files.keys())
+
+    def __iter__(self):
+        return iter(self._files.values())  # was iter(self._files.keys())
+
+    def __vbs_index_get__(self, key):
+        return self.Item(key)
+        
 class Request:
     def __init__(self, method: str, path: str, query_string: str, headers: dict, body: bytes, remote_addr: str = ""):
         self._method = method.upper()
@@ -78,6 +131,7 @@ class Request:
         self._parse_form_if_needed()
 
     def _parse_form_if_needed(self):
+        self._files = UploadedFilesCollection({})  # always initialize
         if self._method != "POST":
             return
         ctype = self._headers.get('content-type', '')
@@ -90,7 +144,6 @@ class Request:
             return
 
         if ctype.startswith('multipart/form-data'):
-            # Minimal multipart parser: populates Request.Form with non-file fields.
             boundary = None
             for part in ctype.split(';'):
                 part = part.strip()
@@ -101,25 +154,21 @@ class Request:
                 return
 
             b = self._body
-            sep = ("--" + boundary).encode('utf-8', errors='ignore')
-            end = ("--" + boundary + "--").encode('utf-8', errors='ignore')
+            sep = ("--" + boundary).encode('latin-1')
             items: dict[str, list[str]] = {}
+            files: dict[str, UploadedFile] = {}
 
-            # split on boundary markers
             parts = b.split(sep)
             for p in parts:
-                if not p:
+                if not p or p == b'--\r\n' or p.startswith(b'--'):
                     continue
-                if p.startswith(b'--'):
-                    break
                 if p.startswith(b"\r\n"):
                     p = p[2:]
-                # headers/body separator
                 hdr_end = p.find(b"\r\n\r\n")
                 if hdr_end == -1:
                     continue
                 hdr_blob = p[:hdr_end].decode('utf-8', errors='replace')
-                body = p[hdr_end+4:]
+                body = p[hdr_end + 4:]
                 if body.endswith(b"\r\n"):
                     body = body[:-2]
 
@@ -132,6 +181,7 @@ class Request:
                 cd = headers.get('content-disposition', '')
                 if 'form-data' not in cd.lower():
                     continue
+
                 name = None
                 filename = None
                 for seg in cd.split(';'):
@@ -140,19 +190,27 @@ class Request:
                         name = seg.split('=', 1)[1].strip().strip('"')
                     if seg.lower().startswith('filename='):
                         filename = seg.split('=', 1)[1].strip().strip('"')
+
                 if not name:
                     continue
-                # Ignore file payloads for now; keep only normal fields.
-                if filename:
-                    continue
 
-                try:
-                    val = body.decode('utf-8', errors='replace')
-                except Exception:
-                    val = ''
-                items.setdefault(name, []).append(val)
+                if filename is not None:
+                    content_type = headers.get('content-type', 'application/octet-stream').strip()
+                    files[name] = UploadedFile(name, filename, content_type, body)
+                else:
+                    try:
+                        val = body.decode('utf-8', errors='replace')
+                    except Exception:
+                        val = ''
+                    items.setdefault(name, []).append(val)
 
             self._form = NameValueCollection(items)
+            self._files = UploadedFilesCollection(files)
+
+
+    @property
+    def Files(self):
+        return self._files  # UploadedFilesCollection instance
 
     @property
     def TotalBytes(self):
@@ -185,7 +243,7 @@ class Request:
                 byref.set(len(chunk))
             except Exception:
                 pass
-        return chunk
+        return chunk.decode('latin-1')
 
     @property
     def QueryString(self):
