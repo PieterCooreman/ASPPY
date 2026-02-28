@@ -768,6 +768,12 @@ class ADODBStream:
         n = int(v)
         if n < 0:
             n = 0
+        # For legacy upload scripts using text-mode streams with binary data:
+        # freeASPUpload passes position that's 2 bytes too high. Adjust.
+        if n > 0 and self._type == self.adTypeText and len(self._buf_bin) > 0 and (not self._buf_text):
+            n -= 2
+            if n < 0:
+                n = 0
         self._pos = n
 
     @property
@@ -952,12 +958,10 @@ class ADODBStream:
 
             # Match ADODB.Stream behavior: Read() is not valid for text streams.
             raise VBScriptCOMError(-2147024809, "The parameter is incorrect.")
-        if len(self._buf_bin) > 0 and (not self._buf_text):
+        has_binary = (len(self._buf_bin) > 0 and (not self._buf_text))
+        if has_binary:
+            # Binary data stored in text-mode stream - use 0-based position
             start = int(self._pos)
-            # Compatibility: legacy upload scripts using ADODB.Stream in text mode
-            # treat Position as 1-based when reading raw request bytes.
-            if self._type == self.adTypeText and start > 0:
-                start -= 1
             start = min(max(0, start), len(self._buf_bin))
             if count is None:
                 out = bytes(self._buf_bin[start:])
@@ -1111,7 +1115,8 @@ class ADODBStream:
             raise Exception("ADODB.Stream.CopyTo: dest is Nothing")
 
         # Get a byte view of the source.
-        if len(self._buf_bin) > 0 and (not self._buf_text):
+        has_binary = (len(self._buf_bin) > 0 and (not self._buf_text))
+        if has_binary:
             src = bytes(self._buf_bin)
         elif self._type == self.adTypeBinary:
             src = bytes(self._buf_bin)
@@ -1119,10 +1124,6 @@ class ADODBStream:
             src = self._text_bytes_for_io()
 
         start = int(self._pos)
-        one_based = False
-        if (len(self._buf_bin) > 0 and (not self._buf_text)) and self._type == self.adTypeText and start > 0:
-            start -= 1
-            one_based = True
         start = min(max(0, start), len(src))
         n = None
         if count is not None and str(count) != "":
@@ -1131,7 +1132,7 @@ class ADODBStream:
             except Exception:
                 n = None
         chunk = src[start:] if n is None else src[start:start + max(0, n)]
-        self._pos = start + len(chunk) + (1 if one_based else 0)
+        self._pos = start + len(chunk)
 
         try:
             dest_stream.Write(chunk)
