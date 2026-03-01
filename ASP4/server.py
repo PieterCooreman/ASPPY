@@ -11,6 +11,7 @@ import urllib.parse
 import email.utils
 import shutil
 import uuid
+import tempfile
 from typing import Any
 
 # Allow running via: python ASP4/server.py ...
@@ -496,10 +497,40 @@ class ASPRequestHandler(BaseHTTPRequestHandler):
 
         # Read body (for POST/PUT). Support both Content-Length and chunked transfer encoding.
         body = b""
+        body_file_path = ""
+        body_len = 0
+        body_preview = b""
         if self.command.upper() in ("POST", "PUT"):
+            mem_limit = max(0, _env_int("ASP_PY_REQ_MEM_MAX", 2 * 1024 * 1024))
+            mem_chunks = []
+            mem_total = 0
+            tmp_file = None
+
+            def _consume(part: bytes):
+                nonlocal body_len, body_preview, mem_total, tmp_file, body_file_path
+                if not part:
+                    return
+                body_len += len(part)
+                if len(body_preview) < 1000:
+                    body_preview = body_preview + part[:1000 - len(body_preview)]
+                if tmp_file is not None:
+                    tmp_file.write(part)
+                    return
+                if (mem_total + len(part)) <= mem_limit:
+                    mem_chunks.append(part)
+                    mem_total += len(part)
+                    return
+                fd, body_file_path = tempfile.mkstemp(prefix="asp4_req_", suffix=".bin")
+                os.close(fd)
+                tmp_file = open(body_file_path, 'wb')
+                for c in mem_chunks:
+                    tmp_file.write(c)
+                mem_chunks.clear()
+                mem_total = 0
+                tmp_file.write(part)
+
             te = (self.headers.get('Transfer-Encoding', '') or '').lower()
             if 'chunked' in te:
-                chunks = []
                 total = 0
                 maxb = 25 * 1024 * 1024
                 while True:
@@ -538,8 +569,7 @@ class ASPRequestHandler(BaseHTTPRequestHandler):
                     total += len(data)
                     if total > maxb:
                         break
-                    chunks.append(data)
-                body = b"".join(chunks)
+                    _consume(data)
             else:
                 try:
                     n = int(self.headers.get('Content-Length', '0'))
@@ -548,19 +578,30 @@ class ASPRequestHandler(BaseHTTPRequestHandler):
                 if n > 0:
                     # rfile.read(n) is not guaranteed to return all bytes in one call.
                     remaining = n
-                    chunks = []
                     while remaining > 0:
                         part = self.rfile.read(remaining)
                         if not part:
                             break
-                        chunks.append(part)
+                        _consume(part)
                         remaining -= len(part)
-                    body = b"".join(chunks)
+            if tmp_file is not None:
+                try:
+                    tmp_file.flush()
+                except Exception:
+                    pass
+                try:
+                    tmp_file.close()
+                except Exception:
+                    pass
+                body = b""
+            else:
+                body = b"".join(mem_chunks)
+                body_len = len(body)
 
         # Build Request
         headers = {k: v for (k, v) in self.headers.items()}
         remote = self.client_address[0] if self.client_address else ""
-        req = Request(self.command, request_path, request_query, headers, body, remote_addr=remote)
+        req = Request(self.command, request_path, request_query, headers, body, remote_addr=remote, body_file_path=body_file_path, body_len=body_len)
 
         # Optional request tracing (disabled by default).
         if _env_bool("ASP_PY_TRACE_REQUEST", False):
@@ -571,13 +612,14 @@ class ASPRequestHandler(BaseHTTPRequestHandler):
                     form_map = dict(getattr(req.Form, '_m', {}) or {})
                 except Exception:
                     form_map = {}
-                body_preview = body[:1000]
+                if not body_preview:
+                    body_preview = body[:1000]
                 try:
                     body_preview_txt = body_preview.decode('utf-8', errors='replace')
                 except Exception:
                     body_preview_txt = repr(body_preview)
                 print(
-                    f"[asp4 trace] {self.command} {path} ctype={ctype!r} content_length={headers.get('Content-Length') or headers.get('content-length')!r} body_len={len(body)} form_keys={list(form_map.keys())}",
+                    f"[asp4 trace] {self.command} {path} ctype={ctype!r} content_length={headers.get('Content-Length') or headers.get('content-length')!r} body_len={body_len} form_keys={list(form_map.keys())}",
                     file=sys.stderr,
                 )
                 if self.command.upper() in ("POST", "PUT"):
@@ -670,6 +712,16 @@ class ASPRequestHandler(BaseHTTPRequestHandler):
         if getattr(res, 'log_tail', None):
             try:
                 self.log_message("asp-log: %s", "".join(res.log_tail))
+            except Exception:
+                pass
+
+        try:
+            req.Close()
+        except Exception:
+            pass
+        if body_file_path:
+            try:
+                os.remove(body_file_path)
             except Exception:
                 pass
 
