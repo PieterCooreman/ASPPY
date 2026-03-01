@@ -145,7 +145,7 @@ def _build_globals_env(ctx: ExecutionContext):
                  'FILTER',                  'FORMATCURRENCY', 'FORMATDATETIME', 'FORMATNUMBER', 'FORMATPERCENT',
                  'ROUND', 'RGB', 'SCRIPTENGINE', 'SCRIPTENGINEBUILDVERSION', 'SCRIPTENGINEMAJORVERSION',
                  'SCRIPTENGINEMINORVERSION', 'CREATEOBJECT', 'GETOBJECT', 'EVAL', 'EXECUTE', 'EXECUTEGLOBAL',
-                 'STRCOMP', 'INSTRB'):
+                 'STRCOMP', 'INSTRB', 'ESCAPE', 'UNESCAPE'):
         if name not in env:
             # Look in vb_builtins or other modules
             try:

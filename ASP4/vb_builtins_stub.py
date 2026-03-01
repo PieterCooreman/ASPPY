@@ -118,3 +118,13 @@ def Rnd(number=None):
 def FormatDateTime(date, namedformat=0):
     from .vb_datetime import FormatDateTime as _F
     return _F(date, namedformat)
+
+
+def Escape(string=""):
+    from .vb_builtins import Escape as _E
+    return _E(string)
+
+
+def Unescape(string):
+    from .vb_builtins import Unescape as _U
+    return _U(string)

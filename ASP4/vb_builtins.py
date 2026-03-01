@@ -76,6 +76,57 @@ def Join(list_var, delimiter=" "):
     d = vbs_cstr(delimiter)
     return d.join([vbs_cstr(i) for i in items])
 
+
+def Escape(string=""):
+    s = vbs_cstr(string)
+    safe = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@*_+-./"
+    out = []
+    for ch in s:
+        if ch in safe:
+            out.append(ch)
+            continue
+        cp = ord(ch)
+        if cp <= 0xFF:
+            out.append("%" + format(cp, "02X"))
+            continue
+        b = ch.encode('utf-16-be', errors='surrogatepass')
+        for i in range(0, len(b), 2):
+            unit = (b[i] << 8) | b[i + 1]
+            out.append("%u" + format(unit, "04X"))
+    return "".join(out)
+
+
+def Unescape(string):
+    s = vbs_cstr(string)
+    n = len(s)
+    i = 0
+    out = []
+    while i < n:
+        ch = s[i]
+        if ch != '%':
+            out.append(ch)
+            i += 1
+            continue
+
+        if i + 5 < n and s[i + 1] in ('u', 'U'):
+            h = s[i + 2:i + 6]
+            if all(c in '0123456789abcdefABCDEF' for c in h):
+                out.append(chr(int(h, 16)))
+                i += 6
+                continue
+
+        if i + 2 < n:
+            h = s[i + 1:i + 3]
+            if all(c in '0123456789abcdefABCDEF' for c in h):
+                out.append(chr(int(h, 16)))
+                i += 3
+                continue
+
+        out.append('%')
+        i += 1
+
+    return "".join(out)
+
 def UBound(arrayname, dimension=1):
     from .vm.values import VBArray
     if isinstance(arrayname, VBArray):
