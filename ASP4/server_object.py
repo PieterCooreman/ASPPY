@@ -1140,7 +1140,24 @@ class ADODBStream:
             dest_stream.WriteText(chunk)
 
     def Flush(self):
-        return
+        self._ensure_open()
+
+        # Materialize the current stream content in the active representation.
+        # This mirrors ADO's "commit buffered data" intent even though this
+        # shim keeps data in memory.
+        if self._type == self.adTypeBinary:
+            if len(self._buf_bin) == 0 and self._buf_text:
+                self._buf_bin = bytearray(self._text_bytes_for_io())
+        else:
+            if self._buf_text and len(self._buf_bin) == 0:
+                self._buf_bin = bytearray(self._text_bytes_for_io())
+
+        # Keep position within valid bounds after materialization.
+        end = int(self._effective_length())
+        if self._pos < 0:
+            self._pos = 0
+        elif self._pos > end:
+            self._pos = end
 
     def _coerce_bytes(self, data) -> bytes:
         if isinstance(data, (bytes, bytearray)):

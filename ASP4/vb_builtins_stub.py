@@ -4,9 +4,9 @@ from .vm.values import VBEmpty, VBNull, VBNothing
 
 import datetime as _dt
 import math as _math
+import random as _random
+import random as _random
 import os
-import struct as _struct
-import time as _time
 
 from decimal import Decimal, ROUND_HALF_EVEN
 
@@ -101,52 +101,19 @@ def Timer():
     from .vb_datetime import Timer as _T
     return _T()
 
-# VBScript-like RNG state (24-bit LCG) to mirror VM behavior.
-_RND_MOD = 16777216
-_RND_A = 1140671485
-_RND_C = 12820163
-_rnd_state = int.from_bytes(os.urandom(4), 'little') % _RND_MOD
-_rnd_last = _rnd_state / float(_RND_MOD)
+# Seed ONCE at module load with true entropy
+_rng = _random.Random(os.urandom(16))
 
 def Randomize(seed=None):
-    global _rnd_state, _rnd_last
-    if seed is None or seed == "":
-        try:
-            s = int(float(Timer()) * 1000000.0)
-        except Exception:
-            s = int(_time.time() * 1000000.0)
+    if seed is None:
+        _rng.seed(os.urandom(16))
     else:
-        try:
-            s = int(float(seed) * 1000000)
-        except Exception:
-            s = int(_time.time() * 1000000.0)
-    _rnd_state = int(s) % _RND_MOD
-    _rnd_last = _rnd_state / float(_RND_MOD)
+        _rng.seed(float(seed))
 
 def Rnd(number=None):
-    global _rnd_state, _rnd_last
-    n = None
-    if number is not None:
-        try:
-            n = float(number)
-        except Exception:
-            n = 0.0
-
-    if n is not None and n < 0:
-        b = _struct.pack('<f', float(n))
-        bits = _struct.unpack('<I', b)[0]
-        seed24 = (bits & 0xFFFFFF) | ((bits >> 24) & 0xFF)
-        _rnd_state = int(seed24) % _RND_MOD
-        _rnd_state = (_rnd_state * _RND_A + _RND_C) % _RND_MOD
-        _rnd_last = _rnd_state / float(_RND_MOD)
-        return _rnd_last
-
-    if n is not None and n == 0:
-        return _rnd_last
-
-    _rnd_state = (_rnd_state * _RND_A + _RND_C) % _RND_MOD
-    _rnd_last = _rnd_state / float(_RND_MOD)
-    return _rnd_last
+    if number is not None and number < 0:
+        _rng.seed(float(number))
+    return _rng.random()
 
 def FormatDateTime(date, namedformat=0):
     from .vb_datetime import FormatDateTime as _F
