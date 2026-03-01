@@ -16,6 +16,8 @@ from . import vb_zip
 from . import vb_image
 from . import vb_crypto
 from . import vb_pdf
+from . import pop3 as vb_pop3
+from . import imap as vb_imap
 
 
 class JsonShim:
@@ -43,6 +45,12 @@ class ASP4Shim:
         self.image = vb_image.ASP4_IMAGE
         self.crypto = vb_crypto.ASP4_CRYPTO
         self.pdf = vb_pdf.ASP4_PDF
+
+    def pop3(self):
+        return vb_pop3.ASP4POP3()
+
+    def imap(self):
+        return vb_imap.ASP4IMAP()
 
 
 def _to_json_value(value: Any):

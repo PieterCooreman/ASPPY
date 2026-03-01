@@ -287,6 +287,14 @@ class Server:
             from .cdo import CDOMessage
 
             return CDOMessage(docroot=self._docroot)
+        if pid in ("asp4.pop3", "asppy.pop3"):
+            from .pop3 import ASP4POP3
+
+            return ASP4POP3()
+        if pid in ("asp4.imap", "asppy.imap"):
+            from .imap import ASP4IMAP
+
+            return ASP4IMAP()
         if pid in ("adodb.connection",):
             from .adodb import ADOConnection
             obj = ADOConnection(docroot=self._docroot)
