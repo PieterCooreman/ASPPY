@@ -1349,16 +1349,19 @@ class VBInterpreter:
 
     def _vbs_randomize(self, number=None):
         # VBScript Randomize
-        import time
         if number is None or number == "":
-            # seconds since midnight (Timer) approximation
-            t = time.localtime()
-            secs = t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec
-            seed = int(secs * 1000)
+            # Use Timer() with sub-second precision so repeated Randomize calls
+            # in the same second do not restart the exact same sequence.
+            try:
+                seed = int(float(vb_datetime.Timer()) * 1000000.0)
+            except Exception:
+                import time
+                seed = int(time.time() * 1000000.0)
         else:
             try:
                 seed = int(float(number) * 1000000)
             except Exception:
+                import time
                 seed = int(time.time() * 1000)
         self._rnd_state = seed % 16777216
         self._rnd_last = self._rnd_state / 16777216.0
