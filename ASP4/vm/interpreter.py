@@ -352,6 +352,8 @@ class VBInterpreter:
         # VBScript RNG state (for Rnd/Randomize)
         self._rnd_state = 0
         self._rnd_last = 0.0
+        self._rnd_last_auto_seed = None
+        self._rnd_auto_nonce = 0
         self.env['RND'] = self._vbs_rnd
         self.env['RANDOMIZE'] = self._vbs_randomize
 
@@ -1350,13 +1352,22 @@ class VBInterpreter:
     def _vbs_randomize(self, number=None):
         # VBScript Randomize
         if number is None or number == "":
-            # Use Timer() with sub-second precision so repeated Randomize calls
-            # in the same second do not restart the exact same sequence.
+            # Use high-resolution clock sources and a per-interpreter nonce so
+            # rapid back-to-back calls do not reuse the same seed.
             try:
-                seed = int(float(vb_datetime.Timer()) * 1000000.0)
+                import time
+                timer_seed = int(float(vb_datetime.Timer()) * 1000000.0)
+                seed = int(timer_seed + (time.time_ns() & 0xFFFFFF) + (time.perf_counter_ns() & 0xFFFFFF))
             except Exception:
                 import time
                 seed = int(time.time() * 1000000.0)
+            self._rnd_auto_nonce = (int(self._rnd_auto_nonce) + 1) & 0xFFFFFFFF
+            seed = int(seed + self._rnd_auto_nonce)
+            seed24 = int(seed) % 16777216
+            if self._rnd_last_auto_seed is not None and int(seed24) == int(self._rnd_last_auto_seed):
+                seed24 = (int(seed24) + 1) % 16777216
+            self._rnd_last_auto_seed = int(seed24)
+            seed = int(seed24)
         else:
             try:
                 seed = int(float(number) * 1000000)
