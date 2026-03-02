@@ -1,5 +1,22 @@
 <%
 Class cls_media
+    Private Sub EnsureUploadsFolder()
+        Dim fso, uploadsPath, uploadsRel
+        uploadsPath = AppMap("uploads")
+        uploadsRel = AppRelPath("uploads")
+        Set fso = Server.CreateObject("Scripting.FileSystemObject")
+        If Not fso.FolderExists(uploadsPath) Then
+            On Error Resume Next
+            fso.CreateFolder uploadsPath
+            If Err.Number <> 0 Then
+                Err.Clear
+                fso.CreateFolder uploadsRel
+            End If
+            On Error GoTo 0
+        End If
+        Set fso = Nothing
+    End Sub
+
     Public Function ListAll(db)
         Set ListAll = db.Query("SELECT id,file_name,original_name,rel_path,mime_type,ext,size_bytes,width,height,created_at FROM media ORDER BY id DESC")
     End Function
@@ -40,6 +57,7 @@ Class cls_media
         r = CStr(Int((Rnd() * 900000) + 100000))
         finalName = Replace(CStr(Timer()), ".", "") & "_" & r & "_" & SafeFileName(upload.FileName)
         relPath = "uploads/" & finalName
+        EnsureUploadsFolder
         absPath = AppMap(relPath)
 
         upload.SaveAs absPath

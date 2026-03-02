@@ -131,6 +131,20 @@ Function AppMap(relPath)
     AppMap = Server.MapPath(AppUrl(relPath))
 End Function
 
+Function AppRelPath(relPath)
+    Dim base, r
+    base = Replace(AppBasePath(), "\\", "/")
+    Do While Left(base, 1) = "/"
+        base = Mid(base, 2)
+    Loop
+    r = NormalizeRelPath(relPath)
+    If base = "" Then
+        AppRelPath = r
+    Else
+        AppRelPath = base & "/" & r
+    End If
+End Function
+
 Function PalettePreset(name)
     Dim d : Set d = Server.CreateObject("Scripting.Dictionary")
     name = LCase(Trim("" & name))
