@@ -501,7 +501,7 @@ class ASPRequestHandler(BaseHTTPRequestHandler):
         body_len = 0
         body_preview = b""
         if self.command.upper() in ("POST", "PUT"):
-            mem_limit = max(0, _env_int("ASP_PY_REQ_MEM_MAX", 2 * 1024 * 1024))
+            mem_limit = max(0, _env_int("ASP_PY_REQ_MEM_MAX", 64 * 1024 * 1024))
             mem_chunks = []
             mem_total = 0
             tmp_file = None

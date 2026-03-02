@@ -200,8 +200,6 @@ class Request:
         if self._method != "POST":
             return
         ctype = self._headers.get('content-type', '')
-        if self._body_file_path and ctype.startswith('multipart/form-data'):
-            return
         if ctype.startswith('application/x-www-form-urlencoded'):
             try:
                 if self._body_file_path:
@@ -224,7 +222,14 @@ class Request:
             if not boundary:
                 return
 
-            b = self._body
+            if self._body_file_path:
+                try:
+                    with open(self._body_file_path, 'rb') as f:
+                        b = f.read()
+                except Exception:
+                    b = b''
+            else:
+                b = self._body
             sep = ("--" + boundary).encode('latin-1')
             items: dict[str, list[str]] = {}
             files: dict[str, UploadedFile] = {}
