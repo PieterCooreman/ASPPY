@@ -181,6 +181,20 @@ ElseIf method = "PUT" Then
     
     Response.Write "{""success"":true}"
     
+ElseIf method = "DELETE" Then
+    Dim deleteId
+    deleteId = Request.QueryString("id")
+    
+    If deleteId = "" Then
+        Response.Status = 400
+        Response.Write "{""error"":""ID is required""}"
+        db.Close: Set db = Nothing
+        Response.End
+    End If
+    
+    bpSvc.DeleteBlueprint db, deleteId
+    Response.Write "{""success"":true}"
+    
 ElseIf method = "POST" Then
     If Request.QueryString("action") = "delete" Then
         Dim deleteId

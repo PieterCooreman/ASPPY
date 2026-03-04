@@ -6,7 +6,7 @@ Class cls_db
         Dim dbPath
         dbPath = AppMap("db/cms.db")
         Set Conn = Server.CreateObject("ADODB.Connection")
-        Conn.Open "Data Source=" & dbPath
+        Conn.Open "Provider=SQLite;Data Source=" & dbPath
     End Sub
 
     Public Function Query(sql)

@@ -516,8 +516,8 @@ Set rsHistory = bpSvc.GetSparkHistory(db, blueprintId)
         
         document.getElementById('confirmDelete').addEventListener('click', async () => {
             try {
-                await fetch('api/blueprints.asp?action=delete&id=' + blueprintId, {
-                    method: 'POST'
+                await fetch('api/blueprints.asp?id=' + blueprintId, {
+                    method: 'DELETE'
                 });
                 window.location.href = 'default.asp';
             } catch (err) {
