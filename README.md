@@ -8,7 +8,7 @@ ASP4 is a Python-based runtime that executes Classic ASP (VBScript) pages on Win
 
 ## Why ASP4?
 
-Classic ASP applications represent decades of business logic. Rewriting them is expensive and risky. ASP4 lets you **keep your existing `.asp` files** and serve them through a lightweight Python HTTP server — no COM, no Windows dependency, no IIS license.
+Classic ASP applications represent decades of business logic. Rewriting them is expensive and risky. ASP4 lets you **keep your existing `.asp` files** and serve them through a lightweight Python HTTP server — no COM, no Windows dependency, no IIS license. Linux typically runs Python 10–30% faster than Windows, increasing the performance advantage of modern frameworks like ASP4 over Classic ASP/VBScript on IIS.
 
 ---
 
