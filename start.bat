@@ -8,7 +8,7 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr /i ":%PORT% " ^| findstr /i "
   taskkill /pid %%P /f >nul 2>nul
 )
 
-echo Starting ASP4 server...
+echo Starting ASPPY server...
 echo Launching http://localhost:%PORT% in your default browser...
 echo.
 
@@ -17,7 +17,8 @@ start "" "http://localhost:%PORT%"
 
 ::set ASP_PY_LOG=1 
 ::set ASP_PY_TRACE_REQUEST=1 
-python3 ASP4/server.py 0.0.0.0 8080 www	
+python3 ASPPY/server.py 0.0.0.0 8080 www	
 
 endlocal
+
 
