@@ -25,7 +25,7 @@ Point your browser at `http://localhost:8080` and your `.asp` pages are live.
 
 ## The Perfect Prompt
 
-Refer any AI (like OpenCode.ai) to the MUSTREAD.md file to provide important context before starting any development in ASPPY.
+Refer AI Vibe Coding Agents (like OpenCode.ai) to the MUSTREAD.md file which provides important context and guidelines before starting any development in ASPPY.
 
 ---
 
