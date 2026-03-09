@@ -77,6 +77,49 @@ textarea:focus, input[type="text"]:focus { outline: none; border-color: #0d6efd;
 </div>
 
 <div class="card">
+    <h2>Application Language</h2>
+    <p>Choose the language for all UI labels, buttons, messages, and content in the application.</p>
+    <div class="row2" style="margin-bottom:0.75rem">
+        <div>
+            <label for="lang-select">Primary language</label>
+            <select id="lang-select" style="width:100%;border:1px solid #ced4da;border-radius:6px;padding:0.6rem 0.75rem;font-size:0.875rem;font-family:inherit;background:#fff;">
+                <option value="English" selected>English</option>
+                <option value="Chinese (Simplified)">Chinese (Simplified)</option>
+                <option value="Chinese (Traditional)">Chinese (Traditional)</option>
+                <option value="Spanish">Spanish</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Arabic">Arabic</option>
+                <option value="Portuguese">Portuguese</option>
+                <option value="French">French</option>
+                <option value="German">German</option>
+                <option value="Japanese">Japanese</option>
+                <option value="Russian">Russian</option>
+                <option value="Korean">Korean</option>
+                <option value="Italian">Italian</option>
+                <option value="Dutch">Dutch</option>
+                <option value="Turkish">Turkish</option>
+                <option value="Polish">Polish</option>
+                <option value="Indonesian">Indonesian</option>
+                <option value="Thai">Thai</option>
+                <option value="Vietnamese">Vietnamese</option>
+                <option value="Swedish">Swedish</option>
+            </select>
+        </div>
+        <div>
+            <div class="check-row" style="margin-top:1.65rem">
+                <input type="checkbox" id="multilingual">
+                <label for="multilingual">Multi-lingual application</label>
+            </div>
+            <div style="font-size:0.78rem;color:#6c757d;margin-top:0.15rem">English is always the default language. Select additional languages below.</div>
+        </div>
+    </div>
+    <div id="multi-langs" style="display:none;border-top:1px solid #eee;padding-top:0.75rem;margin-top:0.5rem">
+        <label style="margin-bottom:0.5rem">Additional languages (English is always included)</label>
+        <div class="row2" id="multi-lang-checks"></div>
+    </div>
+</div>
+
+<div class="card">
     <h2>Features</h2>
     <div class="row2">
         <div class="check-row"><input type="checkbox" id="feat-auth" checked><label for="feat-auth">Login / authentication</label></div>
@@ -120,6 +163,24 @@ document.querySelectorAll('.radio-group').forEach(function(g){
     });
 });
 
+// multi-lingual toggle
+var allLangs = ['Chinese (Simplified)','Chinese (Traditional)','Spanish','Hindi','Arabic','Portuguese','French','German','Japanese','Russian','Korean','Italian','Dutch','Turkish','Polish','Indonesian','Thai','Vietnamese','Swedish'];
+var multiBox = document.getElementById('multi-langs');
+var multiChecks = document.getElementById('multi-lang-checks');
+allLangs.forEach(function(lang){
+    var id = 'ml-' + lang.replace(/[^a-zA-Z]/g,'').toLowerCase();
+    var d = document.createElement('div');
+    d.className = 'check-row';
+    d.innerHTML = '<input type="checkbox" id="'+id+'" data-lang="'+lang+'"><label for="'+id+'">'+lang+'</label>';
+    multiChecks.appendChild(d);
+});
+document.getElementById('multilingual').addEventListener('change', function(){
+    multiBox.style.display = this.checked ? 'block' : 'none';
+    if(!this.checked){
+        multiChecks.querySelectorAll('input[type=checkbox]').forEach(function(c){ c.checked = false; });
+    }
+});
+
 function val(id){ return document.getElementById(id).value.trim(); }
 function chk(id){ return document.getElementById(id).checked; }
 function css(){ return document.querySelector('input[name="css"]:checked').value; }
@@ -146,6 +207,27 @@ function generate(){
     if(val('appname')) prompt["app_name"] = val('appname');
 
     prompt["css_framework"] = css() === 'tailwind' ? 'Tailwind CSS' : 'Bootstrap 5 (latest CDN)';
+
+    var isMulti = chk('multilingual');
+    var primaryLang = document.getElementById('lang-select').value;
+    if(isMulti){
+        var extraLangs = [];
+        document.querySelectorAll('#multi-lang-checks input[type=checkbox]:checked').forEach(function(c){
+            extraLangs.push(c.getAttribute('data-lang'));
+        });
+        var allSelected = ['English'];
+        if(primaryLang !== 'English' && allSelected.indexOf(primaryLang) === -1) allSelected.push(primaryLang);
+        extraLangs.forEach(function(l){ if(allSelected.indexOf(l) === -1) allSelected.push(l); });
+        prompt["language"] = {
+            "mode": "multi-lingual",
+            "default_language": "English",
+            "supported_languages": allSelected,
+            "instructions": "Build the application with a language switching mechanism. English is the default. All UI labels, buttons, messages, validation errors, and page titles must be translatable. Store translations in a central location (e.g. a dictionary/lookup structure or database table). Do not hardcode user-facing strings directly in views."
+        };
+    } else {
+        prompt["language"] = primaryLang;
+    }
+
     if(features.length) prompt["requested_features"] = features;
     if(val('extra')) prompt["additional_instructions"] = val('extra');
 
