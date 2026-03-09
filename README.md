@@ -7,6 +7,8 @@ ASPPY is a Python-based runtime that executes Classic ASP (VBScript) pages on Wi
 
 [Give a the ASPPY Prompt-Builder a try!](https://pietercooreman.github.io/ASPPY/prompt-builder.html)
 
+<a href="https://www.markdownguide.org" target="_blank">Learn Markdown!</a>
+
 
 ---
 
