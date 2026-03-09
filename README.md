@@ -25,7 +25,7 @@ Point your browser at `http://localhost:8080` and your `.asp` pages are live.
 
 ## The Perfect Prompt ?
 
-Refer AI vibe-coding agents (like OpenCode, Claude Code, Codex agents, Cursor, GitHub Copilot) to the developers.md file, which provides important context and guidelines before starting any development in ASPPY. This reduces development time and cost by 30–40% and significantly improves code quality, even when using free AI coding agents. You can also use the prompt-builder.html to generate clear-cut prompts to paste in AI coding agents.
+Refer AI vibe-coding agents (like OpenCode, Claude Code, Codex agents, Cursor, GitHub Copilot) to the developers.md file, which provides important context and guidelines before starting any development in ASPPY. This reduces development time and cost by 30–40% and significantly improves code quality, even when using free AI coding agents. You can also use the [https://pietercooreman.github.io/ASPPY/prompt-builder.html](prompt-builder.html) to generate clear-cut prompts to paste in AI coding agents.
 
 ---
 
