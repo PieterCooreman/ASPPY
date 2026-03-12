@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompt Builder - ASPPY Framework Documentation</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css">
+<style>
+    body { padding-top: 5rem; }
+    .sidebar { min-height: calc(100vh - 5rem); border-right: 1px solid #dee2e6; }
+    
+    /* Prompt Builder Specific Styles */
+    .wrap { max-width: 820px; margin: 0 auto; }
+    .subtitle { color: #6c757d; font-size: 0.95rem; margin-bottom: 2rem; }
+    .builder-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); padding: 1.5rem; margin-bottom: 1.25rem; border: 1px solid rgba(0,0,0,.125); }
+    .builder-card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; }
+    .builder-card p { font-size: 0.85rem; color: #6c757d; margin-bottom: 1rem; }
+    .builder-label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.3rem; color: #495057; }
+    .builder-input { width: 100%; border: 1px solid #ced4da; border-radius: 6px; padding: 0.6rem 0.75rem; font-size: 0.875rem; font-family: inherit; resize: vertical; }
+    .builder-input:focus { outline: none; border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13,110,253,0.15); }
+    .radio-group { display: flex; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap;}
+    .radio-group label { display: flex; align-items: center; gap: 0.4rem; font-weight: 500; font-size: 0.875rem; cursor: pointer; padding: 0.5rem 1rem; border: 2px solid #dee2e6; border-radius: 8px; transition: all 0.15s; margin-bottom:0; }
+    .radio-group input { display: none; }
+    .radio-group input:checked + label, .radio-group label.sel { border-color: #0d6efd; background: rgba(13,110,253,0.06); color: #0d6efd; }
+    .check-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .check-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: #0d6efd; }
+    .check-row label { margin-bottom: 0; font-weight: 500; font-size: 0.85rem; cursor: pointer; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; margin-bottom: 2rem;}
+    #output-wrap { display: none; }
+    #output-wrap.show { display: block; }
+    #output { width: 100%; min-height: 300px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.78rem; line-height: 1.45; background: #1e1e2e; color: #cdd6f4; border: none; border-radius: 8px; padding: 1rem; resize: vertical; }
+    .tag { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 4px; background: #e9ecef; color: #495057; margin-left: 0.5rem; vertical-align: middle; }
+    .copied { position: fixed; top: 1rem; right: 1rem; background: #198754; color: #fff; padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 9999; }
+    .copied.show { opacity: 1; }
+    .explain { background: #f8f9fa; border-left: 3px solid #0d6efd; border-radius: 0 8px 8px 0; padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+    .explain h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; color: #0d6efd; }
+    .explain p { font-size: 0.84rem; color: #495057; margin-bottom: 0.5rem; }
+    .explain p:last-child { margin-bottom: 0; }
+    @media (max-width: 600px) { .row2 { grid-template-columns: 1fr; } .radio-group { flex-direction: column; } }
+</style>
+</head>
+<body>
+<nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="index.html">ASPPY Framework</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarsExample" aria-controls="navbarsExample" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarsExample">
+            <ul class="navbar-nav me-auto mb-2 mb-md-0">
+                <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="legacy_asp.html">Legacy ASP</a></li>
+                <li class="nav-item"><a class="nav-link" href="database.html">Database (ADODB)</a></li>
+                <li class="nav-item"><a class="nav-link" href="pop3_imap.html">Mail (POP3/IMAP)</a></li>
+                <li class="nav-item"><a class="nav-link" href="zip.html">Zip</a></li>
+                <li class="nav-item"><a class="nav-link" href="pdf.html">PDF</a></li>
+                <li class="nav-item"><a class="nav-link" href="image.html">Image</a></li>
+                <li class="nav-item"><a class="nav-link" href="crypto.html">Crypto</a></li>
+                <li class="nav-item"><a class="nav-link" href="json.html">JSON</a></li>
+                <li class="nav-item"><a class="nav-link" href="specifications.html">Specifications</a></li>
+                <li class="nav-item"><a class="nav-link" href="why_asppy.html">Why ASPPY Exists</a></li>
+                <li class="nav-item"><a class="nav-link" href="iis_setup.html">IIS Setup</a></li>
+                <li class="nav-item"><a class="nav-link" href="sample_apps.html">Sample Apps</a></li>
+                <li class="nav-item"><a class="nav-link active" href="prompt_builder.html">Prompt Builder</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container-fluid">
+    <div class="row">
+        <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+            <div class="position-sticky pt-3">
+                <ul class="nav flex-column">
+                    <li class="nav-item"><a class="nav-link" href="index.html">Overview</a></li>
+                    <li class="nav-item"><a class="nav-link" href="legacy_asp.html">Legacy ASP Objects</a></li>
+                    <li class="nav-item"><a class="nav-link" href="database.html">Database (ADODB)</a></li>
+                    <li class="nav-item"><a class="nav-link" href="pop3_imap.html">ASPPY Mail</a></li>
+                    <li class="nav-item"><a class="nav-link" href="zip.html">ASPPY.zip</a></li>
+                    <li class="nav-item"><a class="nav-link" href="pdf.html">ASPPY.pdf</a></li>
+                    <li class="nav-item"><a class="nav-link" href="image.html">ASPPY.image</a></li>
+                    <li class="nav-item"><a class="nav-link" href="crypto.html">ASPPY.crypto</a></li>
+                    <li class="nav-item"><a class="nav-link" href="json.html">ASPPY.json</a></li>
+                    <li class="nav-item"><a class="nav-link" href="specifications.html">Specifications</a></li>
+                    <li class="nav-item"><a class="nav-link" href="why_asppy.html">Why ASPPY Exists</a></li>
+                    <li class="nav-item"><a class="nav-link" href="iis_setup.html">IIS Setup</a></li>
+                    <li class="nav-item"><a class="nav-link" href="sample_apps.html">Sample Apps</a></li>
+                    <li class="nav-item"><a class="nav-link active" href="prompt_builder.html">Prompt Builder</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 mt-4 mb-5">
+            <div class="wrap">
+                <h1 class="pb-2 border-bottom">ASPPY Prompt Builder</h1>
+                <p class="subtitle">Generate a complete project prompt for AI coding agents</p>
+
+                <div class="explain">
+                    <h2>What is this?</h2>
+                    <p>This tool builds a structured JSON prompt that contains your project description together with every technical rule from the ASPPY readme. You paste the JSON output into a coding agent like OpenCode or Claude Code as your <strong>first message</strong>.</p>
+                    <p><strong>Why it works well:</strong> AI coding agents make most of their mistakes early, when they lack context about the framework. A single structured prompt front-loads the hard rules, path conventions, MVC structure, known pitfalls (like the VBScript subscript error), and your project requirements into one message. The agent reads everything before writing a single line of code, so it builds the correct file structure, uses the right include paths, and avoids the common errors from the start. No back-and-forth corrections, no wasted tokens.</p>
+                </div>
+
+                <div class="builder-card">
+                    <h2>Project Description</h2>
+                    <p>Describe what you want to build. Be specific about features, pages, and data.</p>
+                    <textarea id="description" class="builder-input" rows="8" placeholder="Example: Build a project management app with task boards, user assignments, due dates, and a Kanban view. Include login with sample users. Tasks should belong to projects and have statuses: todo, in-progress, done."></textarea>
+                </div>
+
+                <div class="builder-card">
+                    <h2>App Name <span class="tag">optional</span></h2>
+                    <input type="text" id="appname" class="builder-input" placeholder="e.g. TaskBoard, Invoicer, HelpDesk">
+                </div>
+
+                <div class="builder-card">
+                    <h2>CSS Framework</h2>
+                    <div class="radio-group" id="css-group">
+                        <input type="radio" name="css" id="css-bootstrap" value="bootstrap" checked>
+                        <label for="css-bootstrap">Bootstrap 5</label>
+                        <input type="radio" name="css" id="css-tailwind" value="tailwind">
+                        <label for="css-tailwind">Tailwind CSS</label>
+                    </div>
+                </div>
+
+                <div class="builder-card">
+                    <h2>Application Language</h2>
+                    <p>Choose the language for all UI labels, buttons, messages, and content in the application.</p>
+                    <div class="row2" style="margin-bottom:0.75rem">
+                        <div>
+                            <label class="builder-label" for="lang-select">Primary language</label>
+                            <select id="lang-select" class="builder-input" style="background:#fff;">
+                                <option value="English" selected>English</option>
+                                <option value="Chinese (Simplified)">Chinese (Simplified)</option>
+                                <option value="Chinese (Traditional)">Chinese (Traditional)</option>
+                                <option value="Spanish">Spanish</option>
+                                <option value="Hindi">Hindi</option>
+                                <option value="Arabic">Arabic</option>
+                                <option value="Portuguese">Portuguese</option>
+                                <option value="French">French</option>
+                                <option value="German">German</option>
+                                <option value="Japanese">Japanese</option>
+                                <option value="Russian">Russian</option>
+                                <option value="Korean">Korean</option>
+                                <option value="Italian">Italian</option>
+                                <option value="Dutch">Dutch</option>
+                                <option value="Turkish">Turkish</option>
+                                <option value="Polish">Polish</option>
+                                <option value="Indonesian">Indonesian</option>
+                                <option value="Thai">Thai</option>
+                                <option value="Vietnamese">Vietnamese</option>
+                                <option value="Swedish">Swedish</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="check-row" style="margin-top:1.65rem">
+                                <input type="checkbox" id="multilingual">
+                                <label for="multilingual">Multi-lingual application</label>
+                            </div>
+                            <div style="font-size:0.78rem;color:#6c757d;margin-top:0.15rem">English is always the default language. Select additional languages below.</div>
+                        </div>
+                    </div>
+                    <div id="multi-langs" style="display:none;border-top:1px solid #eee;padding-top:0.75rem;margin-top:0.5rem">
+                        <label class="builder-label" style="margin-bottom:0.5rem">Additional languages (English is always included)</label>
+                        <div class="row2" id="multi-lang-checks"></div>
+                    </div>
+                </div>
+
+                <div class="builder-card">
+                    <h2>Features</h2>
+                    <div class="row2">
+                        <div class="check-row"><input type="checkbox" id="feat-auth" checked><label for="feat-auth">Login / authentication</label></div>
+                        <div class="check-row"><input type="checkbox" id="feat-sample" checked><label for="feat-sample">Sample / seed data</label></div>
+                        <div class="check-row"><input type="checkbox" id="feat-crud" checked><label for="feat-crud">Full CRUD operations</label></div>
+                        <div class="check-row"><input type="checkbox" id="feat-search"><label for="feat-search">Search / filtering</label></div>
+                        <div class="check-row"><input type="checkbox" id="feat-upload"><label for="feat-upload">File uploads</label></div>
+                        <div class="check-row"><input type="checkbox" id="feat-dash"><label for="feat-dash">Dashboard with stats</label></div>
+                    </div>
+                </div>
+
+                <div class="builder-card">
+                    <h2>Additional Instructions <span class="tag">optional</span></h2>
+                    <p>Anything else the agent should know: tone, specific libraries, special requirements.</p>
+                    <textarea id="extra" class="builder-input" rows="3" placeholder="e.g. Use a dark color scheme. Include pagination on list pages."></textarea>
+                </div>
+
+                <div class="btn-row">
+                    <button class="btn btn-primary" onclick="generate()">Generate Prompt</button>
+                    <button class="btn btn-outline-secondary" onclick="copyOutput()">Copy to Clipboard</button>
+                </div>
+
+                <div id="output-wrap">
+                    <div class="builder-card" style="margin-top:1.25rem; padding:0; overflow:hidden;">
+                        <textarea id="output" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+<div class="copied" id="copied-toast">Copied to clipboard</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// radio styling
+document.querySelectorAll('.radio-group').forEach(function(g){
+    g.querySelectorAll('input[type=radio]').forEach(function(r){
+        r.addEventListener('change', function(){
+            g.querySelectorAll('label').forEach(function(l){ l.classList.remove('sel'); });
+            if(r.checked) r.nextElementSibling.classList.add('sel');
+        });
+        if(r.checked) r.nextElementSibling.classList.add('sel');
+    });
+});
+
+// multi-lingual toggle
+var allLangs = ['Chinese (Simplified)','Chinese (Traditional)','Spanish','Hindi','Arabic','Portuguese','French','German','Japanese','Russian','Korean','Italian','Dutch','Turkish','Polish','Indonesian','Thai','Vietnamese','Swedish'];
+var multiBox = document.getElementById('multi-langs');
+var multiChecks = document.getElementById('multi-lang-checks');
+allLangs.forEach(function(lang){
+    var id = 'ml-' + lang.replace(/[^a-zA-Z]/g,'').toLowerCase();
+    var d = document.createElement('div');
+    d.className = 'check-row';
+    d.innerHTML = '<input type="checkbox" id="'+id+'" data-lang="'+lang+'"><label for="'+id+'">'+lang+'</label>';
+    multiChecks.appendChild(d);
+});
+document.getElementById('multilingual').addEventListener('change', function(){
+    multiBox.style.display = this.checked ? 'block' : 'none';
+    if(!this.checked){
+        multiChecks.querySelectorAll('input[type=checkbox]').forEach(function(c){ c.checked = false; });
+    }
+});
+
+function val(id){ return document.getElementById(id).value.trim(); }
+function chk(id){ return document.getElementById(id).checked; }
+function css(){ return document.querySelector('input[name="css"]:checked').value; }
+
+function generate(){
+    var desc = val('description');
+    if(!desc){
+        document.getElementById('description').focus();
+        return;
+    }
+
+    var features = [];
+    if(chk('feat-auth'))   features.push('Secure login with session-based authentication and bcrypt password hashing');
+    if(chk('feat-sample')) features.push('Sample seed data inserted via a one-time /setup route');
+    if(chk('feat-crud'))   features.push('Full CRUD (create, read, update, delete) for all entities');
+    if(chk('feat-search')) features.push('Search and filtering on list pages');
+    if(chk('feat-upload')) features.push('File upload support using www/uploads');
+    if(chk('feat-dash'))   features.push('Dashboard page with summary statistics');
+
+    var prompt = {
+        "project_description": desc
+    };
+
+    if(val('appname')) prompt["app_name"] = val('appname');
+
+    prompt["css_framework"] = css() === 'tailwind' ? 'Tailwind CSS' : 'Bootstrap 5 (latest CDN)';
+
+    var isMulti = chk('multilingual');
+    var primaryLang = document.getElementById('lang-select').value;
+    if(isMulti){
+        var extraLangs = [];
+        document.querySelectorAll('#multi-lang-checks input[type=checkbox]:checked').forEach(function(c){
+            extraLangs.push(c.getAttribute('data-lang'));
+        });
+        var allSelected = ['English'];
+        if(primaryLang !== 'English' && allSelected.indexOf(primaryLang) === -1) allSelected.push(primaryLang);
+        extraLangs.forEach(function(l){ if(allSelected.indexOf(l) === -1) allSelected.push(l); });
+        prompt["language"] = {
+            "mode": "multi-lingual",
+            "default_language": "English",
+            "supported_languages": allSelected,
+            "instructions": "Build the application with a language switching mechanism. English is the default. All UI labels, buttons, messages, validation errors, and page titles must be translatable. Store translations in a central location (e.g. a dictionary/lookup structure or database table). Do not hardcode user-facing strings directly in views."
+        };
+    } else {
+        prompt["language"] = primaryLang;
+    }
+
+    if(features.length) prompt["requested_features"] = features;
+    if(val('extra')) prompt["additional_instructions"] = val('extra');
+
+    prompt["platform"] = {
+        "name": "ASPPY",
+        "language": "VBScript (Classic ASP syntax)",
+        "database": "SQLite via ADODB",
+        "server_command": "python -m ASPPY.server 0.0.0.0 5000 www",
+        "working_directory": "C:\\ASPPY\\www",
+        "starter_template": "Copy C:\\ASPPY\\www_starter into C:\\ASPPY\\www before building"
+    };
+
+    prompt["hard_rules"] = [
+        "Build inside C:\\ASPPY\\www",
+        "Do not modify C:\\ASPPY\\ASPPY\\*.py",
+        "Do not modify C:\\ASPPY\\www_starter\\*.*",
+        "Use ASPPY only, do not add IIS requirements",
+        "Run dev server on port 5000",
+        "After editing any included .asp file, restart the ASPPY server process to clear the in-memory ASP compilation cache"
+    ];
+
+    prompt["mvc_rules"] = {
+        "router": "www/default.asp is the front controller and router",
+        "entry_point": "www/index.asp includes default.asp",
+        "routing": "Use Request.Path for routing via RouteParts() and RouteIs()",
+        "separation": [
+            "default.asp dispatches routes only, no SQL or HTML rendering",
+            "Controllers live in www/asp/controllers/",
+            "Models live in www/asp/models/",
+            "Views live in www/asp/views/",
+            "Controllers prepare data and include a view; they do not build full pages with Response.Write"
+        ],
+        "layout": "Pick one layout ownership model: either default.asp or each controller owns RenderHeader/RenderFooter, not both",
+        "error_handling": [
+            "Unknown routes must return Response.Status = '404 Not Found'",
+            "Missing .asp files must stay real 404s",
+            "Do not bypass MVC by linking directly to /asp/*.asp files"
+        ]
+    };
+
+    prompt["critical_vbscript_pitfall"] = {
+        "error": "Subscript out of range",
+        "cause": "VBScript And does NOT short-circuit. All operands are evaluated even if the first is False.",
+        "broken_example": "If UBound(parts) = 2 And parts(0) = \"contacts\" And IsNumeric(parts(1)) And parts(2) = \"edit\" Then",
+        "explanation": "parts(2) is evaluated even when the array has 0 or 1 elements, causing a crash.",
+        "workaround": "Use nested If blocks. Only access parts(N) inside an If partCount >= N guard.",
+        "correct_pattern": [
+            "Dim parts, partCount",
+            "parts = RouteParts()",
+            "partCount = UBound(parts)",
+            "",
+            "If partCount = 1 Then",
+            "    If parts(0) = \"contacts\" Then",
+            "        If IsNumeric(parts(1)) Then",
+            "            Call ContactsShow(parts(1))",
+            "        End If",
+            "    End If",
+            "End If",
+            "",
+            "If partCount = 2 Then",
+            "    If parts(0) = \"contacts\" Then",
+            "        If IsNumeric(parts(1)) Then",
+            "            Select Case parts(2)",
+            "                Case \"edit\"",
+            "                    Call ContactsEdit(parts(1))",
+            "                Case \"delete\"",
+            "                    Call ContactsDelete(parts(1))",
+            "            End Select",
+            "        End If",
+            "    End If",
+            "End If"
+        ]
+    };
+
+    prompt["path_rules"] = {
+        "three_path_types": [
+            "Route path: /posts/hello (for Request.Path routing)",
+            "Include path: db.asp or ../asp/db.asp (relative to the file containing the include)",
+            "Server.MapPath() path: data/app.db (relative to the executing ASP file, never use leading slash)"
+        ],
+        "mappath_warning": "Server.MapPath is relative to the executing file. The same string points to different physical folders in different files. Never guess, never hardcode physical paths.",
+        "common_includes": {
+            "default.asp -> asp/helpers.asp": "<!--#include file=\"asp/helpers.asp\"-->",
+            "controllers/x.asp -> models/x.asp": "<!--#include file=\"../models/x.asp\"-->",
+            "models/x.asp -> db.asp": "<!--#include file=\"../db.asp\"-->"
+        }
+    };
+
+    prompt["file_structure"] = {
+        "layout": [
+            "www/default.asp       - front controller / router",
+            "www/index.asp         - includes default.asp",
+            "www/asp/              - helpers, db.asp, layout.asp, setup.asp",
+            "www/asp/controllers/  - one file per resource",
+            "www/asp/models/       - one file per resource",
+            "www/asp/views/        - subdirectory per resource",
+            "www/assets/           - CSS, JS, images",
+            "www/data/             - SQLite database (app.db)",
+            "www/uploads/          - user-uploaded files"
+        ],
+        "include_strategy": "Include all models and controllers from default.asp to avoid duplicate function definitions. Individual model and controller files should NOT re-include shared files like db.asp."
+    };
+
+    prompt["common_mistakes_to_avoid"] = [
+        "Do not redirect index.asp to /",
+        "Do not write output before Response.Redirect",
+        "Do not concatenate raw request values directly into SQL, use SqlEscape()",
+        "Do not use IIf() for nullable SQL values",
+        "Do not use On Error Resume Next in routing or page setup",
+        "Do not create tables or run migrations on every request, use a dedicated /setup route",
+        "Do not mix ASP server-side storage with browser localStorage for the same feature",
+        "Validate numeric IDs with IsNumeric() and CInt() before using them",
+        "HTML-encode user output with Html() or Server.HTMLEncode()"
+    ];
+
+    prompt["development_workflow"] = [
+        "1. Copy www_starter into www",
+        "2. Create the database schema and seed data in asp/setup.asp",
+        "3. Build models, then controllers, then views",
+        "4. Wire all includes in default.asp (models first, then controllers)",
+        "5. Add routes to default.asp using nested If blocks for dynamic segments",
+        "6. Start server: python -m ASPPY.server 0.0.0.0 5000 www",
+        "7. Run /setup once to create tables and insert sample data",
+        "8. Test all routes including edge cases and 404s",
+        "9. Report any issues encountered during development"
+    ];
+
+    prompt["final_checklist"] = [
+        "App uses MVC model only",
+        "default.asp only dispatches routes",
+        "index.asp does not create a redirect loop",
+        "Extensionless routes work through Request.Path",
+        "Dynamic routes verified: /resource/1, /resource/1/edit, /resource/1/delete",
+        "Missing .asp files return real 404",
+        "All includes use correct relative paths",
+        "Layout rendering owned by one place only",
+        "Data files in www/data are read and written from the same location",
+        "Assets in www/assets, uploads in www/uploads",
+        "Pages load without ASPPY runtime errors"
+    ];
+
+    var json = JSON.stringify(prompt, null, 2);
+    document.getElementById('output').value = json;
+    document.getElementById('output-wrap').classList.add('show');
+    document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function copyOutput(){
+    var el = document.getElementById('output');
+    if(!el.value){ generate(); }
+    if(!el.value) return;
+    navigator.clipboard.writeText(el.value).then(function(){
+        var t = document.getElementById('copied-toast');
+        t.classList.add('show');
+        setTimeout(function(){ t.classList.remove('show'); }, 1800);
+    });
+}
+</script>
+</body>
+</html>
