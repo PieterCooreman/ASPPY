@@ -116,13 +116,14 @@
             <h3 class="mt-4">The Request Object</h3>
             <p>Used to retrieve client information.</p>
             <table class="table table-striped table-bordered">
-                <thead class="table-dark"><tr><th>Collection</th><th>Description</th></tr></thead>
+                <thead class="table-dark"><tr><th>Collection / Property</th><th>Description</th></tr></thead>
                 <tbody>
                     <tr><td><code>Request.QueryString("key")</code></td><td>Gets GET parameters.</td></tr>
                     <tr><td><code>Request.Form("key")</code></td><td>Gets POST parameters.</td></tr>
                     <tr><td><code>Request.ServerVariables("key")</code></td><td>Gets server vars (e.g., REMOTE_ADDR, HTTP_USER_AGENT).</td></tr>
                     <tr><td><code>Request.Cookies("key")</code></td><td>Gets cookie values.</td></tr>
                     <tr><td><code>Request("key")</code></td><td>Shorthand: searches QueryString, Form, Cookies, then ServerVariables.</td></tr>
+                    <tr><td><code>Request.Method</code> / <code>Request.HttpMethod</code></td><td>Returns the HTTP method (e.g., GET, POST, PUT, DELETE).</td></tr>
                 </tbody>
             </table>
             <h3 class="mt-4">Native File Uploads & Downloads</h3>
