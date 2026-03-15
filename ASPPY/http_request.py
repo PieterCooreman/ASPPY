@@ -138,13 +138,23 @@ class UploadedFile:
 
 class UploadedFilesCollection  :
     def __init__(self, files: dict):
-        # dict[str, UploadedFile]
+        # dict[str, UploadedFile | list[UploadedFile]]
         self._files = files or {}
         self._kmap = {k.lower(): k for k in self._files}
 
+    def _get_all_files(self):
+        """Flatten all files into a list."""
+        result = []
+        for v in self._files.values():
+            if isinstance(v, list):
+                result.extend(v)
+            else:
+                result.append(v)
+        return result
+
     @property
     def Count(self):
-        return len(self._files)
+        return len(self._get_all_files())
 
     def Exists(self, key) -> bool:
         return str(key).lower() in self._kmap
@@ -157,7 +167,7 @@ class UploadedFilesCollection  :
 
     def Items(self):
         from .vm.values import VBArray
-        items = list(self._files.values())
+        items = self._get_all_files()
         if not items:
             return VBArray([-1], allocated=True, dynamic=True)
         arr = VBArray([len(items) - 1], allocated=True, dynamic=True)
@@ -169,13 +179,13 @@ class UploadedFilesCollection  :
         return list(self._files.keys())
 
     def __iter__(self):
-        return iter(self._files.values())  # was iter(self._files.keys())
+        return iter(self._get_all_files())
 
     def __vbs_index_get__(self, key):
         # Support integer index access (by position) as well as string key
         if isinstance(key, (int, float)):
             idx = int(key)
-            vals = list(self._files.values())
+            vals = self._get_all_files()
             if 0 <= idx < len(vals):
                 return vals[idx]
             return None
@@ -280,7 +290,13 @@ class Request:
 
                 if filename is not None:
                     content_type = headers.get('content-type', 'application/octet-stream').strip()
-                    files[name] = UploadedFile(name, filename, content_type, body)
+                    if name in files:
+                        if isinstance(files[name], list):
+                            files[name].append(UploadedFile(name, filename, content_type, body))
+                        else:
+                            files[name] = [files[name], UploadedFile(name, filename, content_type, body)]
+                    else:
+                        files[name] = UploadedFile(name, filename, content_type, body)
                 else:
                     try:
                         val = body.decode('utf-8', errors='replace')
