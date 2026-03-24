@@ -669,6 +669,21 @@ class _Node:
                 return str(v)
         return ""
 
+    def getAttribute(self, name):
+        return self.GetAttribute(name)
+
+    def getElementsByTagName(self, tagName):
+        """Return all descendant elements with the given tag name."""
+        tag = str(tagName)
+        found = []
+        for e in self._e.iter():
+            if not isinstance(getattr(e, 'tag', None), str):
+                continue
+            local = e.tag.split('}', 1)[-1] if '}' in e.tag else e.tag
+            if local == tag:
+                found.append(_Node(e, self._ns, self._doc))
+        return _NodeList(found)
+
     def selectNodes(self, xpath):
         # Minimal XPath support via ElementTree ElementPath.
         # MSXML often uses "//tag"; ElementTree expects ".//tag".
@@ -862,6 +877,22 @@ class DOMDocument:
 
     def hasChildNodes(self):
         return self.firstChild is not None
+
+    def getElementsByTagName(self, tagName):
+        """Return all descendant elements with the given tag name."""
+        root = self._root()
+        if root is None:
+            return _NodeList([])
+        tag = str(tagName)
+        ns = getattr(self, '_ns_uri_to_prefix', {})
+        found = []
+        for e in root.iter():
+            if not isinstance(getattr(e, 'tag', None), str):
+                continue
+            local = e.tag.split('}', 1)[-1] if '}' in e.tag else e.tag
+            if local == tag:
+                found.append(_Node(e, ns, self))
+        return _NodeList(found)
 
     def appendChild(self, newChild):
         if isinstance(newChild, _Node):
