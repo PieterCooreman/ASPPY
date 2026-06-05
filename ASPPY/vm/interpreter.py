@@ -183,27 +183,6 @@ class _ByRef:
         return self._set(v)
 
 
-def _try_rs_field_from_call(interp, expr):
-    if not isinstance(expr, CallExpr):
-        return None
-    try:
-        callee_expr = expr.callee
-        if isinstance(callee_expr, Ident):
-            base = interp._get_var_raw(callee_expr.name.upper())
-        else:
-            base = interp.eval_expr(callee_expr)
-        if isinstance(base, _ByRef):
-            base = base.get()
-        fields = getattr(base, 'Fields', None)
-        if fields is not None and getattr(base, '__class__', None) is not None and base.__class__.__name__ == 'ADORecordset':
-            args = [interp.eval_expr(a) for a in expr.args]
-            if len(args) == 1:
-                return fields.Item(args[0])
-    except Exception:
-        return None
-    return None
-
-
 class _UserProc:
     def __init__(self, name: str, kind: str, params, body):
         self.name = name
@@ -235,6 +214,10 @@ class VBClassDef:
         self.private_props: dict[str, dict[str, _UserProc]] = {}
         self.default_method: _UserProc | None = None
         self.default_prop_get: _UserProc | None = None
+        # Default parameterised Property Let/Set (e.g. obj(key) = value).
+        # Records the property name marked Default so the matching Let/Set can
+        # be resolved even though VBScript only allows the Default keyword on Get.
+        self.default_prop_name: str | None = None
 
     def new_instance(self, interp: Any) -> 'VBClassInstance':
         inst = VBClassInstance(self)
@@ -438,19 +421,28 @@ class VBInterpreter:
                 raise_runtime('VAR_UNDEFINED', str(expr.class_name))
             return self._classes[nm].new_instance(self)
         if isinstance(expr, Member):
-            obj = _try_rs_field_from_call(self, expr.obj)
-            if obj is None:
-                if isinstance(expr.obj, Index):
-                    base = self.eval_expr(expr.obj.obj)
+            # ADO Recordset Field-object access: `rs("field").Member` needs the
+            # Field object. Only special-case a SIMPLE identifier base so we never
+            # re-evaluate a side-effecting call chain (which must run exactly once).
+            obj = None
+            rs_base_expr = None
+            rs_args = None
+            if isinstance(expr.obj, (CallExpr, Index)):
+                inner = expr.obj.callee if isinstance(expr.obj, CallExpr) else expr.obj.obj
+                if isinstance(inner, Ident):
+                    rs_base_expr = inner
+                    rs_args = expr.obj.args
+            if rs_base_expr is not None:
+                try:
+                    base = self._get_var_raw(rs_base_expr.name)
                     if isinstance(base, _ByRef):
                         base = base.get()
                     if getattr(base, '__class__', None) is not None and base.__class__.__name__ == 'ADORecordset':
-                        try:
-                            args = [self.eval_expr(a) for a in expr.obj.args]
-                            if len(args) == 1:
-                                obj = base.Fields.Item(args[0])
-                        except Exception:
-                            obj = None
+                        args = [self.eval_expr(a) for a in rs_args]
+                        if len(args) == 1:
+                            obj = base.Fields.Item(args[0])
+                except Exception:
+                    obj = None
             if obj is None:
                 obj = self.eval_expr(expr.obj)
             if isinstance(obj, _ByRef):
@@ -483,6 +475,13 @@ class VBInterpreter:
                 obj = obj.get()
             if isinstance(obj, _BoundMethod) and obj._kind == 'FUNCTION' and obj._param_count == 0:
                 obj = obj.__vbs_invoke__(self, [])
+            # Default parameterised Property Get on a class instance:
+            #   x = store("colour")  parsed as an Index in some lvalue contexts.
+            if isinstance(obj, VBClassInstance):
+                if obj._cls.default_method is not None:
+                    return self._invoke_class_proc(obj, obj._cls.default_method, expr.args)
+                if obj._cls.default_prop_get is not None:
+                    return self._invoke_class_proc(obj, obj._cls.default_prop_get, expr.args)
             args = [self.eval_expr(a) for a in expr.args]
             obj_any = cast(Any, obj)
             # Resolve the variable name from the AST for better error messages
@@ -568,6 +567,10 @@ class VBInterpreter:
                 return callee.__vbs_invoke__(self, expr.args)
             if isinstance(callee, VBClassInstance) and callee._cls.default_method is not None:
                 return self._invoke_class_proc(callee, callee._cls.default_method, expr.args)
+            # Default parameterised Property Get: store(key) reads via the
+            # class's Default Property Get (e.g. KeyValueStore.Item).
+            if isinstance(callee, VBClassInstance) and callee._cls.default_prop_get is not None:
+                return self._invoke_class_proc(callee, callee._cls.default_prop_get, expr.args)
 
             # Default member indexing (e.g., rs("field")) for non-callable objects.
             if callee is not None and not callable(callee):
@@ -830,22 +833,31 @@ class VBInterpreter:
         This differs from normal Member evaluation by NOT auto-invoking
         zero-arg Function members.
         """
-        obj = _try_rs_field_from_call(self, expr.obj)
-        if obj is None:
-            if isinstance(expr.obj, Index):
-                base = self.eval_expr(expr.obj.obj)
+        # ADO Recordset Field-object access: when `expr.obj` is `rs("field")`
+        # and `rs` is an ADORecordset, member access (e.g. rs("f").Value) needs
+        # the Field object rather than the field's default value. Only handle the
+        # case where the base is a SIMPLE identifier so we never re-evaluate a
+        # side-effecting call chain such as `a.Add(1).Add(2)` (which must invoke
+        # Add() exactly once per call).
+        obj = None
+        rs_base_expr = None
+        rs_args = None
+        if isinstance(expr.obj, (CallExpr, Index)):
+            inner = expr.obj.callee if isinstance(expr.obj, CallExpr) else expr.obj.obj
+            if isinstance(inner, Ident):
+                rs_base_expr = inner
+                rs_args = expr.obj.args
+        if rs_base_expr is not None:
+            try:
+                base = self._get_var_raw(rs_base_expr.name)
                 if isinstance(base, _ByRef):
                     base = base.get()
                 if getattr(base, '__class__', None) is not None and base.__class__.__name__ == 'ADORecordset':
-                    try:
-                        args = []
-                        for a in expr.obj.args:
-                            if a is None: args.append(None)
-                            else: args.append(self.eval_expr(a))
-                        if len(args) == 1:
-                            obj = base.Fields.Item(args[0])
-                    except Exception:
-                        obj = None
+                    args = [self.eval_expr(a) if a is not None else None for a in rs_args]
+                    if len(args) == 1:
+                        obj = base.Fields.Item(args[0])
+            except Exception:
+                obj = None
         if obj is None:
             obj = self.eval_expr(expr.obj)
         if isinstance(obj, _ByRef):
@@ -1085,6 +1097,14 @@ class VBInterpreter:
                 obj = self.eval_expr(tgt.obj)
                 if isinstance(obj, _ByRef):
                     obj = obj.get()
+                # Default parameterised property: store(key) = value
+                # invokes the class's default Property Let/Set.
+                if isinstance(obj, VBClassInstance):
+                    p = self._resolve_default_prop_let(obj, prefer='LET')
+                    if p is not None:
+                        args = [self.eval_expr(a) for a in tgt.args]
+                        self._invoke_class_proc(obj, p, args + [val], by_value_args=True)
+                        return
                 args = [self.eval_expr(a) for a in tgt.args]
                 if hasattr(obj, '__vbs_index_set__'):
                     if len(args) == 1:
@@ -1143,6 +1163,14 @@ class VBInterpreter:
                 obj = self.eval_expr(tgt.obj)
                 if isinstance(obj, _ByRef):
                     obj = obj.get()
+                # Default parameterised property: Set store(key) = obj
+                # invokes the class's default Property Set/Let.
+                if isinstance(obj, VBClassInstance):
+                    p = self._resolve_default_prop_let(obj, prefer='SET')
+                    if p is not None:
+                        args = [self.eval_expr(a) for a in tgt.args]
+                        self._invoke_class_proc(obj, p, args + [val], by_value_args=True)
+                        return
                 args = [self.eval_expr(a) for a in tgt.args]
                 if hasattr(obj, '__vbs_index_set__'):
                     if len(args) == 1:
@@ -1959,12 +1987,35 @@ class VBInterpreter:
 
                 if bool(getattr(m, 'is_default', False)) and vis != 'PRIVATE' and kind == 'GET':
                     c.default_prop_get = proc
+                    c.default_prop_name = nm
                 continue
 
         up = str(cls_def.name).upper() # Class name itself (internal uppercase key)
         self._classes[up] = c
         # Expose class name in env for convenience (VBScript treats it as type name).
         self.env[up] = c
+
+
+    def _resolve_default_prop_let(self, inst: VBClassInstance, prefer: str = 'LET'):
+        """Resolve the Property Let/Set for a class's Default parameterised
+        property, used by  obj(key) = value  /  Set obj(key) = value.
+
+        `prefer` selects which accessor to try first ('LET' for value
+        assignment, 'SET' for object assignment); VBScript falls back to the
+        other accessor when only one is defined.
+        """
+        cls = inst._cls
+        name_up = cls.default_prop_name
+        if name_up is None:
+            return None
+        procs = cls.public_props.get(name_up)
+        if procs is None and inst._can_access_private(self):
+            procs = cls.private_props.get(name_up)
+        if not procs:
+            return None
+        if prefer == 'SET':
+            return procs.get('SET') or procs.get('LET')
+        return procs.get('LET') or procs.get('SET')
 
 
     def _invoke_class_proc(self, inst: VBClassInstance, proc: _UserProc, arg_items, by_value_args: bool = False):
