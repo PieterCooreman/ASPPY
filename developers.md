@@ -1,8 +1,8 @@
 # ASPPY App Rules
 
-Read this before building any new app in `C:\ASPPY\www`.
+Read this before building any new app in `www`.
 
-Start every new app from `C:\ASPPY\www_starter`.
+Start every new app from `www_starter`.
 
 - Do not begin from a blank `www` folder when creating a new app
 - Copy the starter into `www`, then build from that structure
@@ -10,9 +10,9 @@ Start every new app from `C:\ASPPY\www_starter`.
 
 ## Hard Rules
 
-- Build inside `C:\ASPPY\www`
-- Do not modify `C:\ASPPY\ASPPY\*.py`
-- Do not modify `C:\ASPPY\www_starter\*.*`
+- Build inside `www`
+- Do not modify `ASPPY\*.py`
+- Do not modify `www_starter\*.*`
 - Use ASPPY only
 - Do not add IIS requirements
 - Run the dev server on port `5000`
