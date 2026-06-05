@@ -236,14 +236,14 @@ function generate(){
         "language": "VBScript (Classic ASP syntax)",
         "database": "SQLite via ADODB",
         "server_command": "python -m ASPPY.server 0.0.0.0 5000 www",
-        "working_directory": "C:\\ASPPY\\www",
-        "starter_template": "Copy C:\\ASPPY\\www_starter into C:\\ASPPY\\www before building"
+        "working_directory": "www",
+        "starter_template": "Copy www_starter into www before building"
     };
 
     prompt["hard_rules"] = [
-        "Build inside C:\\ASPPY\\www",
-        "Do not modify C:\\ASPPY\\ASPPY\\*.py",
-        "Do not modify C:\\ASPPY\\www_starter\\*.*",
+        "Build inside www",
+        "Do not modify ASPPY\\*.py",
+        "Do not modify www_starter\\*.*",
         "Use ASPPY only, do not add IIS requirements",
         "Run dev server on port 5000",
         "After editing any included .asp file, restart the ASPPY server process to clear the in-memory ASP compilation cache"
