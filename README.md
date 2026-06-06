@@ -27,6 +27,16 @@ Point your browser at `http://localhost:8080` and your `.asp` pages are live.
 
 ---
 
+## The ASPPY Ecosystem
+
+https://pietercooreman.github.io/ASPPY/ (manual)
+https://pietercooreman.github.io/ASPPY/prompt-builder.html (prompt builder for vibe coding tools)
+https://github.com/PieterCooreman/ASP-VBScript-sample-code (advanced sample ASP/VBScript code to refer coding agents to)
+https://pietercooreman.github.io/ASPPY/ASPPY_The_Vibe_Coders_Guide.html (ebook for both vibe coding tools and developers)
+https://learnasppy.quickersite.com/ (learn ASPPY coding - very basic site for beginning developers)
+
+---
+
 ## The Perfect Prompt ?
 
 Refer AI vibe-coding agents (like OpenCode, Claude Code, Codex agents, Cursor, GitHub Copilot) to the developers.md file, which provides important context and guidelines before starting any development in ASPPY. This reduces development time and cost by 30–40% and significantly improves code quality, even when using free AI coding agents. You can also use the [prompt builder](https://pietercooreman.github.io/ASPPY/prompt_builder.html) to generate clear-cut prompts to paste in AI coding agents.
