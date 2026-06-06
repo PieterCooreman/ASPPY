@@ -26,3 +26,5 @@ vbShortTime = 4
 # InStr / comparison constants
 vbBinaryCompare = 0
 vbTextCompare = 1
+
+vbObjectError = -2147221504
