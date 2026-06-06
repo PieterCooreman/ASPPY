@@ -464,11 +464,20 @@ def Fix(number):
     x = float(_to_number(number))
     return int(x)
 
+def _date_to_oaserial(v):
+    # OLE Automation date: days since 1899-12-30. A VBScript Date IS a Double.
+    if isinstance(v, _dt.datetime):
+        d = v
+    else:  # _dt.date
+        d = _dt.datetime(v.year, v.month, v.day)
+    return (d - _dt.datetime(1899, 12, 30)).total_seconds() / 86400.0
+
 def _to_number(v):
     if v is VBNull: raise_runtime('INVALID_USE_OF_NULL')
     if isinstance(v, bool): return 1 if v else 0
     if isinstance(v, (int, float)): return v
     if isinstance(v, Decimal): return float(v)
+    if isinstance(v, (_dt.datetime, _dt.date)): return _date_to_oaserial(v)
     s = vbs_cstr(v).strip()
     if s == "": return 0
     if len(s) >= 2 and s[0] == '&' and s[1] in ('H', 'h', 'O', 'o'):
@@ -485,6 +494,7 @@ def _to_decimal(v) -> Decimal:
     if isinstance(v, Decimal): return v
     if isinstance(v, bool): return Decimal(1 if v else 0)
     if isinstance(v, (int, float)): return Decimal(str(v))
+    if isinstance(v, (_dt.datetime, _dt.date)): return Decimal(str(_date_to_oaserial(v)))
     s = vbs_cstr(v).strip()
     if s == "": return Decimal(0)
     try: return Decimal(s)
