@@ -151,6 +151,21 @@ class VBArray:
         old_items = self._items
         old_ubs = list(self._ubs)
 
+        # Fast path: 1-D array. The flat layout is identical to the logical
+        # order, so ReDim Preserve is just a (possibly truncated) slice copy.
+        # This avoids the O(n) per-element recursion below, which made
+        # repeated `ReDim Preserve a(n)` growth O(n^2) overall.
+        if self._dims == 1:
+            new_ub = new_ubs[0]
+            self._ubs = new_ubs
+            self._allocated = True
+            self._alloc_items(fill=VBEmpty)
+            if new_ub >= 0 and old_ubs[0] >= 0 and self._items:
+                copy_n = min(old_ubs[0], new_ub) + 1
+                if copy_n > 0:
+                    self._items[:copy_n] = old_items[:copy_n]
+            return
+
         self._ubs = new_ubs
         self._allocated = True
         self._alloc_items(fill=VBEmpty)

@@ -70,6 +70,18 @@ import math
 import struct
 import time
 import threading
+import types as _types
+# Plain Python callables used to back VBScript built-in functions (Sin, CStr,
+# Len, ...). These are never user procs, bound methods, class instances or
+# indexable host objects, so when a CallExpr's callee resolves to one of these
+# we can invoke it directly and skip the full dispatch cascade. This is the hot
+# path for CPU-bound scripts that call many built-ins inside tight loops.
+_PLAIN_CALLABLE_TYPES = (
+    _types.FunctionType,
+    _types.BuiltinFunctionType,
+    _types.MethodType,
+    _types.BuiltinMethodType,
+)
 from .values import VBArray, VBEmpty, VBNull, VBNothing, _Sentinel
 from ..vb_errors import raise_runtime, VBScriptRuntimeError, VBScriptError
 from ..http_response import ResponseEndException
@@ -397,6 +409,25 @@ class VBInterpreter:
         return self.eval_expr(expr)
 
     def eval_expr(self, expr):
+        # Fast type-based dispatch for the hottest node types.
+        #
+        # The branches in _eval_expr_slow form an ordered isinstance() cascade.
+        # In CPU-heavy scripts the overwhelming majority of evaluations are
+        # Ident / CallExpr / Concat / BinaryOp, yet CallExpr / Concat / BinaryOp
+        # sit deep in that cascade, so each evaluation wasted up to a dozen
+        # failed isinstance() checks before reaching the right branch.
+        #
+        # Every dispatched AST expr node is a *leaf* subclass of Expr (no node
+        # type inherits from another dispatched node type), so an exact-type
+        # dict lookup keyed on `expr.__class__` is behaviorally identical to the
+        # isinstance cascade but turns the linear scan into a single O(1) hash
+        # lookup. Unknown / rare node types fall through to the full cascade.
+        handler = self._EXPR_DISPATCH.get(expr.__class__)
+        if handler is not None:
+            return handler(self, expr)
+        return self._eval_expr_slow(expr)
+
+    def _eval_expr_slow(self, expr):
         if isinstance(expr, StringLit):
             return expr.value
         if isinstance(expr, NumberLit):
@@ -826,6 +857,467 @@ class VBInterpreter:
             raise_runtime('INVALID_PROC_CALL') # Unsupported binary op
         raise_runtime('INVALID_PROC_CALL') # Unsupported expr
 
+    # ==================================================================
+    # Auto-extracted eval_expr branch handlers (see eval_expr docstring).
+    # Each method body is a verbatim extraction of the matching branch
+    # in _eval_expr_slow; _eval_expr_slow is retained as a fallback.
+    # ==================================================================
+
+    def _eval_stringlit(self, expr):
+        return expr.value
+
+    def _eval_numberlit(self, expr):
+        return expr.value
+
+
+    def _eval_datelit(self, expr):
+        return vb_datetime.CDate(expr.value)
+
+    def _eval_boollit(self, expr):
+        return expr.value
+
+    def _eval_ident(self, expr):
+        name = expr.name
+        up = name  # parser ensures upper
+        return self._get_var(up)
+
+
+    def _eval_newexpr(self, expr):
+        nm = str(expr.class_name).upper()
+        # VBScript ships RegExp as a built-in COM class that can be created via
+        # either `New RegExp` or `CreateObject("VBScript.RegExp")`.
+        if nm == 'REGEXP':
+            return self.ctx.Server.CreateObject('VBScript.RegExp')
+        if nm not in self._classes:
+            raise_runtime('VAR_UNDEFINED', str(expr.class_name))
+        return self._classes[nm].new_instance(self)
+
+    def _eval_member(self, expr):
+        # ADO Recordset Field-object access: `rs("field").Member` needs the
+        # Field object. Only special-case a SIMPLE identifier base so we never
+        # re-evaluate a side-effecting call chain (which must run exactly once).
+        obj = None
+        rs_base_expr = None
+        rs_args = None
+        if isinstance(expr.obj, (CallExpr, Index)):
+            inner = expr.obj.callee if isinstance(expr.obj, CallExpr) else expr.obj.obj
+            if isinstance(inner, Ident):
+                rs_base_expr = inner
+                rs_args = expr.obj.args
+        if rs_base_expr is not None:
+            try:
+                base = self._get_var_raw(rs_base_expr.name)
+                if isinstance(base, _ByRef):
+                    base = base.get()
+                if getattr(base, '__class__', None) is not None and base.__class__.__name__ == 'ADORecordset':
+                    args = [self.eval_expr(a) for a in rs_args]
+                    if len(args) == 1:
+                        obj = base.Fields.Item(args[0])
+            except Exception:
+                obj = None
+        if obj is None:
+            obj = self.eval_expr(expr.obj)
+        if isinstance(obj, _ByRef):
+            obj = obj.get()
+        if obj is VBNothing:
+            raise VBScriptCOMError(424, "Object required")
+        if obj in (VBEmpty, VBNull):
+            return VBEmpty
+        # VBScript allows chaining off zero-arg functions without parentheses:
+        #   obj.Method.Prop  =>  obj.Method().Prop
+        if isinstance(obj, _BoundMethod) and obj._kind == 'FUNCTION' and obj._param_count == 0:
+            obj = obj.__vbs_invoke__(self, [])
+        if isinstance(obj, VBClassInstance):
+            return obj.vbs_get_member(self, expr.name)
+        obj_any = cast(Any, obj)
+        get_prop = _maybe_attr(obj_any, 'vbs_get_prop')
+        if get_prop is not None:
+            return _maybe_invoke_zero_arg(get_prop(expr.name))
+        # Basic Python attribute fallback (only for explicit host objects)
+        if hasattr(obj, expr.name):
+            return _maybe_invoke_zero_arg(getattr(obj, expr.name))
+        # Case-insensitive
+        _icase_val = _icase_getattr(obj, expr.name.upper())
+        if _icase_val is not _ICASE_MISSING:
+            return _maybe_invoke_zero_arg(_icase_val)
+        raise_runtime('OBJECT_NOT_SUPPORT', f"Unknown member: {expr.name} on {type(obj).__name__}")
+
+    def _eval_index(self, expr):
+        obj = self.eval_expr(expr.obj)
+        if isinstance(obj, _ByRef):
+            obj = obj.get()
+        if isinstance(obj, _BoundMethod) and obj._kind == 'FUNCTION' and obj._param_count == 0:
+            obj = obj.__vbs_invoke__(self, [])
+        # Default parameterised Property Get on a class instance:
+        #   x = store("colour")  parsed as an Index in some lvalue contexts.
+        if isinstance(obj, VBClassInstance):
+            if obj._cls.default_method is not None:
+                return self._invoke_class_proc(obj, obj._cls.default_method, expr.args)
+            if obj._cls.default_prop_get is not None:
+                return self._invoke_class_proc(obj, obj._cls.default_prop_get, expr.args)
+        args = [self.eval_expr(a) for a in expr.args]
+        obj_any = cast(Any, obj)
+        # Resolve the variable name from the AST for better error messages
+        _idx_varname = getattr(expr.obj, 'name', None) or '(expression)'
+        idx_get = _maybe_attr(obj_any, '__vbs_index_get__')
+        if idx_get is not None:
+            try:
+                if len(args) == 1:
+                    return idx_get(args[0])
+                return idx_get(args)
+            except IndexError as _ie:
+                _ub = getattr(obj, 'ubound', None)
+                _ub_str = ''
+                if _ub is not None:
+                    try: _ub_str = f', UBound = {_ub()}'
+                    except Exception: _ub_str = ', array unallocated'
+                raise_runtime('SUBSCRIPT_OUT_OF_RANGE',
+                    f"{_idx_varname}({', '.join(str(a) for a in args)}){_ub_str}")
+        # Python list/tuple support for arrays
+        if isinstance(obj, (list, tuple)):
+            if len(args) != 1:
+                raise_runtime('SUBSCRIPT_OUT_OF_RANGE',
+                    f"{_idx_varname}({', '.join(str(a) for a in args)}) — expected 1 index, got {len(args)}")
+            _req_idx = int(args[0])
+            try:
+                return obj[_req_idx]
+            except IndexError:
+                raise_runtime('SUBSCRIPT_OUT_OF_RANGE',
+                    f"{_idx_varname}({_req_idx}), but UBound is {len(obj) - 1}")
+
+        # Robustness: Handle Index on Empty (common in VBScript On Error Resume Next scenarios)
+        # instead of crashing with _Sentinel
+        if obj in (VBEmpty, VBNull, VBNothing, None):
+            # VBScript typically raises "Type mismatch" or "Object required" here.
+            # Since we want to avoid crashing the runner with internal python errors:
+            raise_runtime('TYPE_MISMATCH')
+
+        raise_runtime('OBJECT_NOT_SUPPORT', f"Object is not indexable: {type(obj).__name__}")
+
+    def _eval_callexpr(self, expr):
+        # When calling `obj.Member(...)`, do not auto-invoke a zero-arg
+        # Function on Member lookup; the call itself will invoke it.
+        callee_from_ident = False
+        if isinstance(expr.callee, Ident):
+            callee_from_ident = True
+            name_up = expr.callee.name  # parser ensures upper
+            callee = None
+            if self._locals_stack and name_up in self._locals_stack[-1]:
+                v = self._locals_stack[-1][name_up]
+                v = v.get() if isinstance(v, _ByRef) else v
+                is_current_proc = bool(self._proc_name_stack) and name_up == self._proc_name_stack[-1]
+                prefer_proc = (v is VBEmpty) or is_current_proc
+                # If this is a function return variable (or a non-callable)
+                # and we're in a class context, prefer the class member for recursion.
+                if prefer_proc and self._this_stack:
+                    try:
+                        callee = self._this_stack[-1]._vbs_get_member_raw(self, name_up)
+                    except VBScriptRuntimeError as e:
+                        if str(e).startswith('Unknown member:'):
+                            callee = None
+                        else:
+                            raise
+                if callee is None:
+                    if prefer_proc and name_up in self._procs:
+                        callee = self._procs[name_up]
+                    else:
+                        callee = v
+            if callee is VBEmpty and name_up in self._procs:
+                callee = self._procs[name_up]
+            if callee is None:
+                # Check registered procedures before falling back to
+                # _get_var_raw which only searches locals/env and would
+                # return VBEmpty for procedure names stored in _procs.
+                if name_up in self._procs:
+                    callee = self._procs[name_up]
+                else:
+                    callee = self._get_var_raw(name_up)
+        elif isinstance(expr.callee, Member):
+            callee = self._eval_member_ref(expr.callee)
+        else:
+            callee = self.eval_expr(expr.callee)
+
+        # Fast path: a built-in resolved from an Ident callee (Sin, CStr, Len,
+        # Round, ...). Plain Python functions are never user procs / bound
+        # methods / class instances / indexable host objects, so we can skip the
+        # entire dispatch cascade below and invoke directly. This is the dominant
+        # case for CPU-bound scripts calling many built-ins in tight loops.
+        if callee_from_ident and type(callee) in _PLAIN_CALLABLE_TYPES:
+            ca = expr.args
+            if not ca:
+                return callee()
+            args = [None if a is None else self.eval_expr(a) for a in ca]
+            return callee(*args)
+
+        # User-defined procedures need access to the raw arg expressions (ByRef).
+        if isinstance(callee, _UserProc):
+            return callee.invoke(self, expr.args)
+        if isinstance(callee, _BoundMethod):
+            return callee.__vbs_invoke__(self, expr.args)
+        if isinstance(callee, VBClassInstance) and callee._cls.default_method is not None:
+            return self._invoke_class_proc(callee, callee._cls.default_method, expr.args)
+        # Default parameterised Property Get: store(key) reads via the
+        # class's Default Property Get (e.g. KeyValueStore.Item).
+        if isinstance(callee, VBClassInstance) and callee._cls.default_prop_get is not None:
+            return self._invoke_class_proc(callee, callee._cls.default_prop_get, expr.args)
+
+        # Default member indexing (e.g., rs("field")) for non-callable objects.
+        if callee is not None and not callable(callee):
+            idx_get = _maybe_attr(callee, '__vbs_index_get__')
+            if idx_get is not None:
+                args = []
+                for a in expr.args:
+                    if a is None: args.append(None)
+                    else: args.append(self.eval_expr(a))
+                try:
+                    if len(args) == 1:
+                        return idx_get(args[0])
+                    return idx_get(args)
+                except IndexError:
+                    _call_varname = getattr(expr.callee, 'name', None) or '(expression)'
+                    _ub = getattr(callee, 'ubound', None)
+                    _ub_str = ''
+                    if _ub is not None:
+                        try: _ub_str = f', UBound = {_ub()}'
+                        except Exception: _ub_str = ', array unallocated'
+                    raise_runtime('SUBSCRIPT_OUT_OF_RANGE',
+                        f"{_call_varname}({', '.join(str(a) for a in args)}){_ub_str}")
+
+        # Special-case: legacy upload scripts may rely on Request.BinaryRead
+        # updating the requested byte count (ByRef-like behavior).
+        if isinstance(expr.callee, Member) and str(expr.callee.name).upper() == 'BINARYREAD':
+            try:
+                obj = self.eval_expr(expr.callee.obj)
+                if isinstance(obj, _ByRef):
+                    obj = obj.get()
+                if obj.__class__.__name__ == 'Request' and len(expr.args) == 1 and isinstance(expr.args[0], Ident):
+                    br = self._make_byref(expr.args[0])
+                    if callable(callee):
+                        return callee(br)
+            except Exception:
+                pass
+
+        args = []
+        for a in expr.args:
+            if a is None: args.append(None)
+            else: args.append(self.eval_expr(a))
+        # Array indexing can look like a call in VBScript: a(0)
+        # `cast(Any, ...)` is a typing-only no-op at runtime; calling it here on
+        # every invocation added a measurable per-call function-call overhead.
+        idx_get = getattr(callee, '__vbs_index_get__', None)
+        if idx_get is not None:
+            try:
+                if len(args) == 1:
+                    return idx_get(args[0])
+                return idx_get(args)
+            except IndexError:
+                _call_varname2 = getattr(expr.callee, 'name', None) or '(expression)'
+                _ub2 = getattr(callee, 'ubound', None)
+                _ub_str2 = ''
+                if _ub2 is not None:
+                    try: _ub_str2 = f', UBound = {_ub2()}'
+                    except Exception: _ub_str2 = ', array unallocated'
+                raise_runtime('SUBSCRIPT_OUT_OF_RANGE',
+                    f"{_call_varname2}({', '.join(str(a) for a in args)}){_ub_str2}")
+        if callable(callee):
+            return callee(*args)
+        # Provide a helpful message; this bubbles into aspLite's Err.Description.
+        callee_hint = type(callee).__name__
+        try:
+            if isinstance(expr.callee, Ident):
+                callee_hint = f"{expr.callee.name} ({callee_hint})"
+            elif isinstance(expr.callee, Member):
+                callee_hint = f"{expr.callee.name} member ({callee_hint})"
+        except Exception:
+            pass
+        raise_runtime('OBJECT_NOT_SUPPORT', f"Not callable: {callee_hint}")
+
+    def _eval_call(self, expr):
+        fn = self._get_var_raw(expr.name)  # parser ensures upper
+        args = []
+        for a in expr.args:
+            if a is None: args.append(None)
+            else: args.append(self.eval_expr(a))
+        if isinstance(fn, _UserProc):
+            return fn.invoke(self, expr.args)
+        if isinstance(fn, _BoundMethod):
+            return fn.__vbs_invoke__(self, expr.args)
+        if callable(fn):
+            return fn(*args)
+        raise_runtime('OBJECT_NOT_SUPPORT', f"Not callable: {expr.name}")
+
+    def _eval_concat(self, expr):
+        left = self.eval_expr(expr.left)
+        right = self.eval_expr(expr.right)
+        if expr.op == '&':
+            if isinstance(left, (bytes, bytearray)) or isinstance(right, (bytes, bytearray)):
+                lb = left if isinstance(left, (bytes, bytearray)) else vbs_cstr(left).encode('latin-1', errors='replace')
+                rb = right if isinstance(right, (bytes, bytearray)) else vbs_cstr(right).encode('latin-1', errors='replace')
+                return bytes(lb) + bytes(rb)
+            # VBScript: Null & "x" => "x" (& ignores Null, treats as "")
+            ls = "" if left is VBNull else vbs_cstr(left)
+            rs = "" if right is VBNull else vbs_cstr(right)
+            return ls + rs
+        # VBScript: any arithmetic with Null propagates Null
+        if left is VBNull or right is VBNull:
+            return VBNull
+        # '+' in VBScript is numeric add if possible, else string concat.
+        # Date arithmetic: date + number => add days.
+        if isinstance(left, (_dt.datetime, _dt.date)) and isinstance(right, (int, float)):
+            ld = left if isinstance(left, _dt.datetime) else _dt.datetime(left.year, left.month, left.day)
+            return ld + _dt.timedelta(days=float(right))
+        if isinstance(right, (_dt.datetime, _dt.date)) and isinstance(left, (int, float)):
+            rd = right if isinstance(right, _dt.datetime) else _dt.datetime(right.year, right.month, right.day)
+            return rd + _dt.timedelta(days=float(left))
+        ln = _try_number(left)
+        rn = _try_number(right)
+        if ln is not None and rn is not None:
+            return ln + rn
+        return vbs_cstr(left) + vbs_cstr(right)
+
+    def _eval_unaryop(self, expr):
+        v = self.eval_expr(expr.expr)
+        if expr.op == '-':
+            n = _try_number(v)
+            if n is None:
+                raise_runtime('TYPE_MISMATCH')
+            return -n
+        if expr.op.upper() == 'NOT':
+            if isinstance(v, bool):
+                return not v
+            n = _try_number(v)
+            if n is not None:
+                return _to_int32(~int(n))
+            return not bool(_try_truthy(v))
+        raise_runtime('INVALID_PROC_CALL') # Unsupported unary op
+
+    def _eval_binaryop(self, expr):
+        op = expr.op.upper()
+        if op in ('AND', 'OR', 'XOR', 'EQV', 'IMP'):
+            l = self.eval_expr(expr.left)
+            r = self.eval_expr(expr.right)
+            # VBScript And/Or/Xor/Eqv/Imp are ALWAYS bitwise.
+            # True = -1, False = 0.  Track whether BOTH operands
+            # were boolean so the result type is correct:
+            # bool AND bool => bool, anything else => integer.
+            both_bool = isinstance(l, bool) and isinstance(r, bool)
+            if isinstance(l, bool):
+                l = -1 if l else 0
+            if isinstance(r, bool):
+                r = -1 if r else 0
+
+            ln = _try_number(l)
+            rn = _try_number(r)
+            if ln is not None and rn is not None:
+                li = _to_int32(int(ln))
+                ri = _to_int32(int(rn))
+                result_i = 0
+                if op == 'AND':
+                    result_i = _to_int32(li & ri)
+                elif op == 'OR':
+                    result_i = _to_int32(li | ri)
+                elif op == 'XOR':
+                    result_i = _to_int32(li ^ ri)
+                elif op == 'EQV':
+                    result_i = _to_int32(~(li ^ ri))
+                else:  # IMP
+                    result_i = _to_int32((~li) | ri)
+                # Return boolean only when both operands were boolean
+                if both_bool:
+                    return result_i != 0
+                return result_i
+            # Fallback for non-numeric: treat as boolean
+            lb = bool(_try_truthy(l))
+            rb = bool(_try_truthy(r))
+            li2 = -1 if lb else 0
+            ri2 = -1 if rb else 0
+            result_i2 = 0
+            if op == 'AND':
+                result_i2 = li2 & ri2
+            elif op == 'OR':
+                result_i2 = li2 | ri2
+            elif op == 'XOR':
+                result_i2 = li2 ^ ri2
+            elif op == 'EQV':
+                result_i2 = ~(li2 ^ ri2)
+            else:
+                result_i2 = (~li2) | ri2
+            return result_i2 == -1
+
+        if op == 'IS':
+            l = self.eval_expr(expr.left)
+            r = self.eval_expr(expr.right)
+            # VBScript's Is operator only works with object references.
+            # Non-object values (Empty, Null, scalars) raise Type Mismatch.
+            if l is VBEmpty or l is VBNull or isinstance(l, (int, float, str, bool)):
+                raise_runtime('TYPE_MISMATCH')
+            if r is VBEmpty or r is VBNull or isinstance(r, (int, float, str, bool)):
+                raise_runtime('TYPE_MISMATCH')
+            return l is r
+
+        l = self.eval_expr(expr.left)
+        r = self.eval_expr(expr.right)
+        if expr.op in ('=', '<>', '<', '<=', '>', '>='):
+            return _compare(expr.op, l, r)
+        if expr.op == '-':
+            # Date arithmetic: date - number => subtract days; date - date => days diff
+            if isinstance(l, (_dt.datetime, _dt.date)) and isinstance(r, (int, float)):
+                ld = l if isinstance(l, _dt.datetime) else _dt.datetime(l.year, l.month, l.day)
+                return ld - _dt.timedelta(days=float(r))
+            if isinstance(l, (_dt.datetime, _dt.date)) and isinstance(r, (_dt.datetime, _dt.date)):
+                ld = l if isinstance(l, _dt.datetime) else _dt.datetime(l.year, l.month, l.day)
+                rd = r if isinstance(r, _dt.datetime) else _dt.datetime(r.year, r.month, r.day)
+                return (ld - rd).total_seconds() / 86400.0
+            ln = _try_number(l)
+            rn = _try_number(r)
+            if ln is None or rn is None:
+                raise_runtime('TYPE_MISMATCH')
+            return ln - rn
+        if expr.op == '*':
+            ln = _try_number(l)
+            rn = _try_number(r)
+            if ln is None or rn is None:
+                raise_runtime('TYPE_MISMATCH')
+            return ln * rn
+        if expr.op == '^':
+            ln = _try_number(l)
+            rn = _try_number(r)
+            if ln is None or rn is None:
+                raise_runtime('TYPE_MISMATCH')
+            return ln ** rn
+        if expr.op == '/':
+            ln = _try_number(l)
+            rn = _try_number(r)
+            if ln is None or rn is None:
+                raise_runtime('TYPE_MISMATCH')
+            if rn == 0:
+                raise_runtime('DIVISION_BY_ZERO')
+            return ln / rn
+        if expr.op == '\\':
+            ln = _try_number(l)
+            rn = _try_number(r)
+            if ln is None or rn is None:
+                raise_runtime('TYPE_MISMATCH')
+            if rn == 0:
+                raise_runtime('DIVISION_BY_ZERO')
+            # VBScript integer division: round operands to int first
+            # (banker's rounding), then truncate toward zero (like C).
+            li_d = int(round(ln))
+            ri_d = int(round(rn))
+            return int(math.trunc(li_d / ri_d))
+        if op == 'MOD' or expr.op.upper() == 'MOD':
+            ln = _try_number(l)
+            rn = _try_number(r)
+            if ln is None or rn is None:
+                raise_runtime('TYPE_MISMATCH')
+            if rn == 0:
+                raise_runtime('DIVISION_BY_ZERO')
+            # VBScript Mod: result has sign of dividend (not divisor).
+            # Operands are rounded to integers first.
+            li_m = int(round(ln))
+            ri_m = int(round(rn))
+            return int(math.fmod(li_m, ri_m))
+        raise_runtime('INVALID_PROC_CALL') # Unsupported binary op
 
     def _eval_member_ref(self, expr: Member):
         """Evaluate a Member expression as a callable reference.
@@ -1593,6 +2085,12 @@ class VBInterpreter:
         # Globals/env
         if up in self.env:
             v = self.env[up]
+            # Fast path: plain scalar values (the common case for loop counters
+            # and accumulators) are never _ByRef wrappers or zero-arg user
+            # functions, so skip those isinstance checks entirely.
+            vt = v.__class__
+            if vt is int or vt is float or vt is str:
+                return v
             v = v.get() if isinstance(v, _ByRef) else v
             if isinstance(v, _UserProc) and v.kind == 'FUNCTION' and len(v.params) == 0:
                 return self._invoke_user_proc(v, [])
@@ -2310,7 +2808,33 @@ class VBInterpreter:
         return VBEmpty
 
 
+# Exact-type dispatch table for eval_expr. Keyed on the concrete AST node class
+# (all dispatched nodes are leaf subclasses of Expr), this replaces the linear
+# isinstance() cascade in _eval_expr_slow with a single O(1) dict lookup.
+VBInterpreter._EXPR_DISPATCH = {
+    StringLit: VBInterpreter._eval_stringlit,
+    NumberLit: VBInterpreter._eval_numberlit,
+    DateLit: VBInterpreter._eval_datelit,
+    BoolLit: VBInterpreter._eval_boollit,
+    Ident: VBInterpreter._eval_ident,
+    NewExpr: VBInterpreter._eval_newexpr,
+    Member: VBInterpreter._eval_member,
+    Index: VBInterpreter._eval_index,
+    CallExpr: VBInterpreter._eval_callexpr,
+    Call: VBInterpreter._eval_call,
+    Concat: VBInterpreter._eval_concat,
+    UnaryOp: VBInterpreter._eval_unaryop,
+    BinaryOp: VBInterpreter._eval_binaryop,
+}
+
+
 def _try_number(v):
+    # Fast path: real numbers are by far the most common operand type in
+    # arithmetic-heavy loops. `bool` is a subclass of int, so it is screened
+    # out first (True/False must map to -1/0, not 1/0).
+    t = v.__class__
+    if t is int or t is float:
+        return v
     if v is VBEmpty or v is VBNothing:
         return 0
     if v is VBNull:
