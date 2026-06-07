@@ -1,6 +1,6 @@
 # ASPPY — Classic ASP/VBScript Runtime for Python
 
-**Run your legacy Classic ASP pages on modern infrastructure — no IIS required.**
+**Run your legacy Classic ASP pages on modern Python infrastructure - no IIS required.**
 
 ASPPY is a Python-based runtime that executes Classic ASP (VBScript) pages on Windows, Linux, and macOS. It implements the full Classic ASP object model (`Request`, `Response`, `Session`, `Application`, `Server`) alongside broad VBScript built-in coverage, so most legacy ASP applications just work.
 
