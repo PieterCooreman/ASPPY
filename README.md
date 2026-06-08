@@ -4,9 +4,7 @@
 
 ASPPY is a Python-based runtime that executes Classic ASP (VBScript) pages on Windows, Linux, and macOS. It implements the full Classic ASP object model (`Request`, `Response`, `Session`, `Application`, `Server`) alongside broad VBScript built-in coverage, so most legacy ASP applications just work.
 
-
-[Give a the ASPPY Prompt-Builder a try!](https://pietercooreman.github.io/ASPPY/prompt_builder.html)
-
+[Give the ASPPY Prompt-Builder a try!](https://pietercooreman.github.io/ASPPY/prompt_builder.html)
 
 ---
 
@@ -16,10 +14,32 @@ Classic ASP applications represent decades of business logic. Rewriting them is 
 
 ---
 
-## Quick Start
+## Requirements
+
+### Prerequisites
+
+**Python 3.8 or higher must be installed on your server** (Windows, Linux, or macOS).  
+Download Python at [https://www.python.org/downloads/](https://www.python.org/downloads/).
+
+> ASPPY is a Python application — Python is required on any machine that runs it, including your production hosting server.
+
+### Python packages
+
+Install the required packages with pip:
 
 ```bash
 pip install fpdf2 bcrypt pillow pyodbc
+```
+
+> Not all packages are needed for every use case — install only what your application uses.
+
+---
+
+## Quick Start
+
+Once Python and the packages above are in place:
+
+```bash
 python -m ASPPY.server 0.0.0.0 8080 www
 ```
 
@@ -62,13 +82,6 @@ ASPPY also ships extended helpers beyond classic ASP — JSON encode/decode, ZIP
 
 ---
 
-## Requirements
-
-- Python 3.8+
-- `fpdf2`, `bcrypt`, `pillow`, `pyodbc` (install as needed for the features you use)
-
----
-
 ## Platform Support
 
 Windows · Linux · macOS
@@ -93,7 +106,7 @@ See [LICENSE](LICENSE) for details.
 
 **Disclaimer of Affiliation**
 
-ASPPY is an independent software project developed by Pieter Cooreman. 
+ASPPY is an independent software project developed by Pieter Cooreman.
 
 ASPPY is not affiliated, associated, authorized, endorsed by, or in any way officially connected with Microsoft Corporation, or any of its subsidiaries or its affiliates. The official Microsoft website can be found at https://www.microsoft.com.
 
