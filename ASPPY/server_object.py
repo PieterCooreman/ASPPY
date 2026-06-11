@@ -303,6 +303,10 @@ class Server:
             from .cdo import CDOMessage
 
             return CDOMessage(docroot=self._docroot)
+        if pid == "cdo.configuration":
+            from .cdo import CDOConfiguration
+
+            return CDOConfiguration()
         if pid == "asppy.pop3":
             from .pop3 import ASPPYPOP3
 
