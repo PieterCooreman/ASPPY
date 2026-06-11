@@ -349,8 +349,6 @@ class _SQLiteProviderAdapter(_ADOProviderAdapter):
         if not phys:
             raise_runtime('ADO_UNSPECIFIED', "Invalid data source")
         assert phys is not None
-        if not os.path.isfile(phys):
-            raise_runtime('FILE_NOT_FOUND', phys)
         try:
             db = sqlite3.connect(phys, check_same_thread=False)
             db.isolation_level = None

@@ -175,7 +175,7 @@ def render_asp_vm(vb_text: str, request=None, session=None, application=None, se
     if on_context_created:
         on_context_created(ctx)
 
-    if session is not None and session_is_new:
+    if session is not None:
         try:
             resp.SetCookie("ASP_PY_SESSIONID", getattr(session, 'CookieID', getattr(session, 'SessionID', '')))
         except Exception:

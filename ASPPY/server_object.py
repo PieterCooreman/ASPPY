@@ -303,11 +303,11 @@ class Server:
             from .cdo import CDOMessage
 
             return CDOMessage(docroot=self._docroot)
-        if pid in ("ASPPY.pop3", "ASPPY.pop3"):
+        if pid == "asppy.pop3":
             from .pop3 import ASPPYPOP3
 
             return ASPPYPOP3()
-        if pid in ("ASPPY.imap", "ASPPY.imap"):
+        if pid == "asppy.imap":
             from .imap import ASPPYIMAP
 
             return ASPPYIMAP()
