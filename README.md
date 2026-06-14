@@ -6,7 +6,7 @@ ASPPY is a Python-based runtime that executes Classic ASP (VBScript) pages on Wi
 
 [Give the ASPPY Prompt-Builder a try!](https://pietercooreman.github.io/ASPPY/prompt_builder.html) 
 
-[SPA (Single Page Application) - edition](https://pietercooreman.github.io/ASPPY/prompt-builder-SPA.html)
+[SPA (Single Page Application) - Prompt-Builder](https://pietercooreman.github.io/ASPPY/prompt-builder-SPA.html)
 
 ---
 
