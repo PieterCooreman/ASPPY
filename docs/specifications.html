@@ -222,6 +222,7 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
       <li><a href="image.html">ASPPY.image</a></li>
       <li><a href="crypto.html">ASPPY.crypto</a></li>
       <li><a href="json.html">ASPPY.json</a></li>
+      <li><a href="python.html">ASPPY.ExecutePython</a></li>
       <li><a href="specifications.html" class="active">Specifications</a></li>
       <li><a href="why_asppy.html">Why ASPPY Exists</a></li>
       <li><a href="iis_setup.html">IIS Setup</a></li>
@@ -727,6 +728,11 @@ ASPPY.ImageEnhance.Contrast(img)     ' Contrast enhancer
 <pre><code class="language-vbscript">ASPPY.Crypto.Hash(password[, rounds])    ' Hashes a password (rounds 4-31, default 12)
 ASPPY.Crypto.Verify(password, hashed)     ' Verifies password against hash
 </code></pre>
+<h3>ExecutePython</h3>
+<pre><code class="language-vbscript">ASPPY.ExecutePython(code)        ' Executes inline Python source, returns ASPPY_RETURN value as string
+ASPPY.ExecutePythonFile(path)    ' Executes a .py file (relative to docroot), returns ASPPY_RETURN value
+</code></pre>
+<p>Enable with environment variable <code>ASP_PY_ALLOW_PYTHON=1</code>. Each call spawns an isolated Python subprocess. The Python snippet uses <code>ASPPY_RETURN(value)</code> to return a string to VBScript. See the <a href="python.html">ASPPY.ExecutePython</a> page for full documentation, samples, and environment variables.</p>
 <hr />
 <h1>COM Objects</h1>
 <h2>Scripting.Dictionary</h2>
@@ -1062,6 +1068,9 @@ ASPPY.Crypto.Verify(password, hashed)     ' Verifies password against hash
         <tr><td><code>ASP_PY_XML_ALLOW_LOCAL</code></td><td>Allows DOMDocument local file loading</td></tr>
         <tr><td><code>ASP_PY_CDO_DISABLE_SEND</code></td><td>Disables SMTP send in <code>CDO.Message</code></td></tr>
         <tr><td><code>ASP_PY_CDO_ALLOW_OUTSIDE_DOCROOT</code></td><td>Allows CDO attachments outside docroot</td></tr>
+        <tr><td><code>ASP_PY_ALLOW_PYTHON</code></td><td>Enables <code>ASPPY.ExecutePython</code> (set to <code>1</code>)</td></tr>
+        <tr><td><code>ASP_PY_PYTHON_TIMEOUT</code></td><td>Max seconds for ExecutePython snippets (default 30)</td></tr>
+        <tr><td><code>ASP_PY_PYTHON_ROOT</code></td><td>Sandbox root for <code>ExecutePythonFile</code></td></tr>
     </tbody>
 </table>
 <h2>VBScript Compatibility Notes</h2>
@@ -1086,6 +1095,7 @@ ASPPY.Crypto.Verify(password, hashed)     ' Verifies password against hash
         <tr><td>MSXML HTTP/DOM shims</td><td>Partial</td><td>Security-guarded and stdlib-focused; not full MSXML COM parity</td></tr>
         <tr><td><code>CDO.Message</code></td><td>Partial</td><td>Practical SMTP/pickup subset; not complete CDOSYS feature parity</td></tr>
         <tr><td>POP3/IMAP shims</td><td>Partial</td><td>Legacy-friendly subset for mailbox workflows</td></tr>
+        <tr><td><code>ASPPY.ExecutePython</code></td><td>Full</td><td>Subprocess-based; full CPython access with ASPPY_RETURN convention</td></tr>
     </tbody>
 </table>
 <hr />

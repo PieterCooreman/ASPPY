@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Database Support (ADODB) in ASPPY - Connection, Recordset, Command with Python database drivers.">
-    <title>Database Support (ADODB) - ASPPY Framework Documentation</title>
+    <meta name="description" content="ASPPY.ExecutePython - Run real Python code from Classic ASP/VBScript pages.">
+    <title>ASPPY.ExecutePython - ASPPY Framework Documentation</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
@@ -183,6 +183,7 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
 .alert-info { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); color: var(--text-primary); }
 .alert-success { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); color: var(--text-primary); }
 .alert-warning { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); color: var(--text-primary); }
+.alert-danger { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); color: var(--text-primary); }
 @media (max-width: 768px) {
   .sidebar { position: fixed; left: 0; top: 60px; z-index: 90; transform: translateX(-100%); }
   .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
@@ -202,7 +203,7 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
     </a>
     <div class="nav-actions">
       <a href="index.html" class="nav-link">Website</a>
-	  <a href="prompt-builder.html" class="nav-link">Prompt builder</a>	 
+      <a href="prompt-builder.html" class="nav-link">Prompt builder</a>
       <a href="https://github.com/PieterCooreman/ASPPY" target="_blank" rel="noopener" class="nav-link">GitHub</a>
       <button id="theme-toggle" class="theme-btn" aria-label="Toggle dark mode"><i class="bi bi-moon-stars-fill"></i></button>
       <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Toggle sidebar" aria-expanded="false"><i class="bi bi-list"></i></button>
@@ -215,14 +216,14 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
     <ul>
       <li><a href="index.html">Overview</a></li>
       <li><a href="legacy_asp.html">Legacy ASP Objects</a></li>
-      <li><a href="database.html" class="active">Database (ADODB)</a></li>
+      <li><a href="database.html">Database (ADODB)</a></li>
       <li><a href="pop3_imap.html">ASPPY Mail</a></li>
       <li><a href="zip.html">ASPPY.zip</a></li>
       <li><a href="pdf.html">ASPPY.pdf</a></li>
       <li><a href="image.html">ASPPY.image</a></li>
       <li><a href="crypto.html">ASPPY.crypto</a></li>
       <li><a href="json.html">ASPPY.json</a></li>
-      <li><a href="python.html">ASPPY.ExecutePython</a></li>
+      <li><a href="python.html" class="active">ASPPY.ExecutePython</a></li>
       <li><a href="specifications.html">Specifications</a></li>
       <li><a href="why_asppy.html">Why ASPPY Exists</a></li>
       <li><a href="iis_setup.html">IIS Setup</a></li>
@@ -231,97 +232,221 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
   </nav>
 </aside>
 <main id="main-content" class="doc-main">
-<h1>Database Support (ADODB)</h1>
-<p>ASPPY natively emulates classic ADODB objects (<code>ADODB.Connection</code>, <code>ADODB.Recordset</code>, <code>ADODB.Command</code>). It fully translates VBScript syntax and logic into secure Python database drivers under the hood.</p>
 
-<h3>Supported Drivers</h3>
-<p>ASPPY dynamically parses the <code>ConnectionString</code> and routes connections to standard Python DB-API drivers.</p>
-<ul>
-    <li><strong>SQLite</strong> (Default) - <code>Driver={SQLite3 ODBC Driver};Database=test.db</code></li>
-    <li><strong>Microsoft Access</strong> - Requires <code>pyodbc</code>. <code>Provider=Microsoft.ACE.OLEDB.12.0;Data Source=...</code></li>
-    <li><strong>SQL Server</strong> - Requires <code>pyodbc</code>. <code>Provider=SQLOLEDB;Data Source=...</code></li>
-    <li><strong>MySQL / MariaDB</strong> - Requires <code>mysql-connector-python</code>. <code>Driver={MySQL ODBC 8.0 Driver};...</code></li>
-    <li><strong>PostgreSQL</strong> - Requires <code>psycopg2</code>. <code>Driver={PostgreSQL Unicode};...</code></li>
-</ul>
+<h1>ASPPY.ExecutePython</h1>
+<p>Run real CPython code directly from your Classic ASP / VBScript pages and get a string result back. This bridges the gap between your legacy VBScript web application and the full Python ecosystem &mdash; <code>psutil</code>, <code>numpy</code>, <code>pandas</code>, <code>requests</code>, <code>Pillow</code>, or any other package installed in your Python environment.</p>
 
-<h3>ADODB.Connection</h3>
-<p>Opens a connection to the database and executes queries.</p>
-<pre><code class="language-vbscript">&lt;%
-Dim conn, rs
-Set conn = Server.CreateObject("ADODB.Connection")
+<div class="alert-box alert-warning">
+    <strong>Security:</strong> This feature is <strong>disabled by default</strong>. You must explicitly enable it by setting the <code>ASP_PY_ALLOW_PYTHON=1</code> environment variable before starting the server. Without it, any call to <code>ASPPY.ExecutePython</code> raises an error.
+</div>
 
-' Connect to an SQLite database (auto-created if it doesn't exist)
-conn.Open "Provider=SQLite;Data Source=" &amp; Server.MapPath("/data/app.db")
+<h2>How It Works</h2>
+<p>Each call to <code>ASPPY.ExecutePython</code> spawns an isolated subprocess running the same Python interpreter that hosts ASPPY. Your VBScript code sends a Python source string to execute, and the Python snippet uses <code>ASPPY_RETURN(value)</code> to send a string result back to VBScript.</p>
+<p>The flow is:</p>
+<ol>
+    <li>VBScript calls <code>ASPPY.ExecutePython(pyCode)</code>.</li>
+    <li>ASPPY wraps the code with a runtime prelude that defines <code>ASPPY_RETURN</code>.</li>
+    <li>A fresh <code>python</code> subprocess runs the combined script.</li>
+    <li>The first <code>ASPPY_RETURN(value)</code> writes the payload to stdout and halts execution.</li>
+    <li>ASPPY captures the payload and returns it as a VBScript string.</li>
+</ol>
 
-' Execute raw SQL
-conn.Execute "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)"
-conn.Execute "INSERT INTO users (name) VALUES ('John Doe')"
-
-' Retrieve a Recordset
-Set rs = conn.Execute("SELECT * FROM users")
-
-Do While Not rs.EOF
-    Response.Write "User ID: " &amp; rs("id").Value &amp; " - Name: " &amp; rs("name").Value &amp; "&lt;br&gt;"
-    rs.MoveNext
-Loop
-
-rs.Close
-Set rs = Nothing
-conn.Close
-Set conn = Nothing
-%&gt;</code></pre>
-
-<h3>ADODB.Recordset</h3>
-<p>Standard recordset iteration and updating.</p>
+<h2>Methods</h2>
 <table>
     <thead>
-        <tr><th>Method/Property</th><th>Description</th></tr>
+        <tr>
+            <th>Method</th>
+            <th>Description</th>
+        </tr>
     </thead>
     <tbody>
-        <tr><td><code>Open(sql, connection)</code></td><td>Executes the query and opens the recordset.</td></tr>
-        <tr><td><code>EOF / BOF</code></td><td>Checks if the cursor has reached the end or beginning of the set.</td></tr>
-        <tr><td><code>MoveNext / MoveFirst</code></td><td>Navigates the dataset.</td></tr>
-        <tr><td><code>Fields(name).Value</code></td><td>Retrieves the column value for the current row.</td></tr>
-        <tr><td><code>AddNew() / Update()</code></td><td>Inserts a new row or commits changes to the current row.</td></tr>
-        <tr><td><code>Delete()</code></td><td>Deletes the current row.</td></tr>
+        <tr>
+            <td><code>ASPPY.ExecutePython(code)</code></td>
+            <td>Execute inline Python source. The <code>code</code> parameter is a VBScript string containing valid Python. Returns the value passed to <code>ASPPY_RETURN</code> as a string, or <code>""</code> if <code>ASPPY_RETURN</code> is never called.</td>
+        </tr>
+        <tr>
+            <td><code>ASPPY.ExecutePythonFile(path)</code></td>
+            <td>Execute a <code>.py</code> file. Relative paths resolve against the web root (docroot). The file must be inside the <code>ASP_PY_PYTHON_ROOT</code> sandbox. Uses the same <code>ASPPY_RETURN</code> convention.</td>
+        </tr>
     </tbody>
 </table>
 
-<h5>Updatable Recordsets Example</h5>
+<h2>The ASPPY_RETURN Convention</h2>
+<p>Inside every Python snippet or file, use the built-in <code>ASPPY_RETURN(value)</code> function to return a string to VBScript:</p>
+<ul>
+    <li><strong>First call wins.</strong> The first <code>ASPPY_RETURN</code> sets the return value and stops the snippet.</li>
+    <li><strong>Never called?</strong> The return value is <code>""</code> (empty string).</li>
+    <li><strong>Always a string.</strong> For structured data, return JSON and decode it with <code>ASPPY.json.Decode()</code>.</li>
+</ul>
+
+<pre><code class="language-python">import json
+
+# Do some computation
+data = {"status": "ok", "count": 42}
+
+# Return the result as a JSON string
+ASPPY_RETURN(json.dumps(data))</code></pre>
+
+<h2>Environment Variables</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Variable</th>
+            <th>Default</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>ASP_PY_ALLOW_PYTHON</code></td>
+            <td><code>(disabled)</code></td>
+            <td>Set to <code>1</code> to enable <code>ASPPY.ExecutePython</code>. Without this, calls raise an error.</td>
+        </tr>
+        <tr>
+            <td><code>ASP_PY_PYTHON_TIMEOUT</code></td>
+            <td><code>30</code></td>
+            <td>Maximum seconds a Python snippet may run before it is killed and an error is returned.</td>
+        </tr>
+        <tr>
+            <td><code>ASP_PY_PYTHON_ROOT</code></td>
+            <td><code>(docroot)</code></td>
+            <td>Sandbox root for <code>ExecutePythonFile</code>. Files outside this path are rejected.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Sample: Inline Python</h2>
+<p>Embed Python directly in your ASP page. Use VBScript string concatenation (<code>&amp;</code> and <code>&amp; vbCrLf</code>) to build multi-line Python source:</p>
 <pre><code class="language-vbscript">&lt;%
-Dim rs
-Set rs = Server.CreateObject("ADODB.Recordset")
-' Open a dynamic/updatable recordset
-rs.Open "SELECT * FROM users", conn, 1, 3 ' adOpenKeyset, adLockOptimistic
+Dim pyCode, result
 
-rs.AddNew
-rs("name") = "Jane Smith"
-rs.Update
+pyCode = "import platform" & vbCrLf & _
+         "ASPPY_RETURN(f'Python {platform.python_version()} on {platform.system()}')"
 
-rs.Close
+result = ASPPY.ExecutePython(pyCode)
+Response.Write("System: " & result)
 %&gt;</code></pre>
 
-<h3>ADODB.Command</h3>
-<p>Prevents SQL injection by using parameters.</p>
+<h2>Sample: ExecutePythonFile</h2>
+<p>Place your Python code in a <code>.py</code> file under the web root and call it by relative path:</p>
+<pre><code class="language-python"># www/scripts/status.py
+import psutil, json
+
+cpu = psutil.cpu_percent(interval=1)
+mem = psutil.virtual_memory()
+
+ASPPY_RETURN(json.dumps({
+    "cpu_percent": cpu,
+    "memory_used_gb": round(mem.used / (1024**3), 1),
+    "memory_total_gb": round(mem.total / (1024**3), 1)
+}))</code></pre>
+
 <pre><code class="language-vbscript">&lt;%
-Dim cmd, rsParam
-Set cmd = Server.CreateObject("ADODB.Command")
-cmd.ActiveConnection = conn
-cmd.CommandText = "SELECT * FROM users WHERE name = ?"
+Dim jsonStr, stats
+jsonStr = ASPPY.ExecutePythonFile("scripts/status.py")
+Set stats = ASPPY.json.Decode(jsonStr)
 
-' Add a parameter
-cmd.Parameters.Append cmd.CreateParameter("name", 200, 1, 50, "Jane Smith") ' adVarChar=200, adParamInput=1
+Response.Write "CPU: " &amp; stats("cpu_percent") &amp; "%&lt;br&gt;"
+Response.Write "RAM: " &amp; stats("memory_used_gb") &amp; " / " &amp; stats("memory_total_gb") &amp; " GB"
+%&gt;</code></pre>
 
-Set rsParam = cmd.Execute()
-If Not rsParam.EOF Then
-    Response.Write "Found: " &amp; rsParam("name")
+<h2>Sample: Full Page &mdash; Python Processes</h2>
+<p>A complete working example that lists all running Python processes, sorted by memory usage:</p>
+<pre><code class="language-vbscript">&lt;%@ Language="VBScript" %&gt;
+&lt;%
+Dim pyCode, jsonResult, procs
+
+pyCode = _
+    "import json, psutil"                                              &amp; vbCrLf &amp; _
+    "rows = []"                                                        &amp; vbCrLf &amp; _
+    "for p in psutil.process_iter(['pid', 'name', 'username', 'memory_info']):" &amp; vbCrLf &amp; _
+    "    try:"                                                         &amp; vbCrLf &amp; _
+    "        name = (p.info.get('name') or '')"                        &amp; vbCrLf &amp; _
+    "        if 'python' in name.lower():"                             &amp; vbCrLf &amp; _
+    "            mem = p.info.get('memory_info')"                      &amp; vbCrLf &amp; _
+    "            mb = round(mem.rss / (1024 * 1024), 1) if mem else 0" &amp; vbCrLf &amp; _
+    "            rows.append({"                                        &amp; vbCrLf &amp; _
+    "                'pid': p.info.get('pid'),"                        &amp; vbCrLf &amp; _
+    "                'name': name,"                                    &amp; vbCrLf &amp; _
+    "                'user': p.info.get('username') or '',"           &amp; vbCrLf &amp; _
+    "                'mem_mb': mb"                                     &amp; vbCrLf &amp; _
+    "            })"                                                   &amp; vbCrLf &amp; _
+    "    except (psutil.NoSuchProcess, psutil.AccessDenied):"          &amp; vbCrLf &amp; _
+    "        continue"                                                 &amp; vbCrLf &amp; _
+    "rows.sort(key=lambda r: r['mem_mb'], reverse=True)"               &amp; vbCrLf &amp; _
+    "ASPPY_RETURN(json.dumps(rows))"
+
+On Error Resume Next
+jsonResult = ASPPY.ExecutePython(pyCode)
+
+If Err.Number &lt;&gt; 0 Then
+    Response.Write "&lt;p style='color:#b00'&gt;Error: " &amp; _
+        Server.HTMLEncode(Err.Description) &amp; "&lt;/p&gt;"
+    Err.Clear
+    Response.End
 End If
-rsParam.Close
+On Error Goto 0
+
+procs = ASPPY.json.Decode(jsonResult)
+%&gt;
+&lt;table&gt;
+    &lt;tr&gt;&lt;th&gt;PID&lt;/th&gt;&lt;th&gt;Name&lt;/th&gt;&lt;th&gt;User&lt;/th&gt;&lt;th&gt;Memory (MB)&lt;/th&gt;&lt;/tr&gt;
+&lt;%
+Dim i, proc
+For i = 0 To UBound(procs)
+    Set proc = procs(i)
+    Response.Write "&lt;tr&gt;&lt;td&gt;" &amp; proc("pid") &amp; "&lt;/td&gt;&lt;td&gt;" &amp; _
+        proc("name") &amp; "&lt;/td&gt;&lt;td&gt;" &amp; proc("user") &amp; _
+        "&lt;/td&gt;&lt;td&gt;" &amp; proc("mem_mb") &amp; "&lt;/td&gt;&lt;/tr&gt;"
+Next
+%&gt;
+&lt;/table&gt;</code></pre>
+
+<h2>Error Handling</h2>
+<p>Wrap <code>ASPPY.ExecutePython</code> calls in <code>On Error Resume Next</code> to handle failures gracefully. Common errors include:</p>
+<ul>
+    <li><strong>Feature disabled</strong> &mdash; <code>ASP_PY_ALLOW_PYTHON</code> not set.</li>
+    <li><strong>Module not found</strong> &mdash; the Python package is not installed in the interpreter.</li>
+    <li><strong>Syntax error</strong> &mdash; the Python snippet has invalid syntax.</li>
+    <li><strong>Timeout</strong> &mdash; the snippet ran longer than <code>ASP_PY_PYTHON_TIMEOUT</code>.</li>
+</ul>
+<pre><code class="language-vbscript">&lt;%
+On Error Resume Next
+Dim result
+result = ASPPY.ExecutePython("ASPPY_RETURN('hello')")
+
+If Err.Number &lt;&gt; 0 Then
+    Response.Write "Python error: " &amp; Server.HTMLEncode(Err.Description)
+    Err.Clear
+Else
+    Response.Write "Result: " &amp; result
+End If
+On Error Goto 0
 %&gt;</code></pre>
 
-<div class="alert-box alert-success">
-    <strong>ASPPY Security Bonus:</strong> ASPPY provides an extension allowing you to append <code>AutoEscapeSQL=1;</code> to your ADODB connection strings to attempt automatic SQL injection sanitization on legacy queries.
+<h2>Setting Up Under NSSM</h2>
+<p>If you run ASPPY as a Windows service via <a href="https://nssm.cc/">NSSM</a>, set the environment variable in the service configuration:</p>
+<pre><code class="language-bash">nssm set YourServiceName AppEnvironmentExtra ASP_PY_ALLOW_PYTHON=1
+nssm restart YourServiceName</code></pre>
+<div class="alert-box alert-danger">
+    <strong>Do not</strong> type <code>set ASP_PY_ALLOW_PYTHON=1</code> in the NSSM Environment box. The <code>set</code> prefix is a CMD command, not part of the variable. NSSM expects raw <code>NAME=VALUE</code> lines.
 </div>
+
+<h2>Why Use This?</h2>
+<div class="alert-box alert-info">
+    <strong>Use cases for running Python from ASP:</strong>
+    <ul style="margin-top:0.5rem">
+        <li><strong>System monitoring</strong> &mdash; list processes, check disk usage, query hardware via <code>psutil</code></li>
+        <li><strong>Data processing</strong> &mdash; run <code>pandas</code>, <code>numpy</code>, or <code>scipy</code> computations and return results</li>
+        <li><strong>Machine learning</strong> &mdash; call <code>scikit-learn</code>, <code>TensorFlow</code>, or <code>PyTorch</code> for inference</li>
+        <li><strong>Report generation</strong> &mdash; create charts with <code>matplotlib</code>, PDFs with <code>reportlab</code></li>
+        <li><strong>API integrations</strong> &mdash; use <code>requests</code> to call external REST APIs with full SSL/TLS support</li>
+        <li><strong>Image processing</strong> &mdash; manipulate images with <code>Pillow</code> or <code>OpenCV</code></li>
+        <li><strong>Service management</strong> &mdash; manage Windows services via <code>subprocess</code> (see the Sample Apps)</li>
+        <li><strong>Legacy modernization</strong> &mdash; incrementally rewrite VBScript logic in Python without a full rewrite</li>
+    </ul>
+</div>
+
 </main>
 </div>
 <footer class="doc-footer">

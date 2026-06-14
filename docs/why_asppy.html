@@ -222,6 +222,7 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
       <li><a href="image.html">ASPPY.image</a></li>
       <li><a href="crypto.html">ASPPY.crypto</a></li>
       <li><a href="json.html">ASPPY.json</a></li>
+      <li><a href="python.html">ASPPY.ExecutePython</a></li>
       <li><a href="specifications.html">Specifications</a></li>
       <li><a href="why_asppy.html" class="active">Why ASPPY Exists</a></li>
       <li><a href="iis_setup.html">IIS Setup</a></li>
@@ -324,6 +325,7 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
     <li><strong><code>ASPPY.JSON</code></strong> — parse and produce JSON natively, essential for modern web applications and APIs</li>
     <li><strong><code>ASPPY.pop3</code></strong> — connect and read a pop3-enabled mailbox</li>
     <li><strong><code>ASPPY.imap</code></strong> — connect and read an imap-enabled mailbox</li>
+    <li><strong><code>ASPPY.ExecutePython</code></strong> — run any Python code or library (<code>numpy</code>, <code>pandas</code>, <code>psutil</code>, etc.) directly from VBScript, bridging legacy ASP to the full Python ecosystem</li>
 </ul>
 <p>These modules make ASPPY a genuinely capable modern web platform, not simply a preservation effort. Existing Classic ASP code runs unchanged, and new code can take advantage of these modules immediately — no third-party components, no COM registration, no legacy ActiveX dependencies.</p>
 <hr />
@@ -345,6 +347,7 @@ pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
         <tr><td>Request.Files (native upload handling)</td><td>&#10060; No</td><td>&#9989; Yes</td></tr>
         <tr><td>Response.File (native file flushing)</td><td>&#10060; No</td><td>&#9989; Yes</td></tr>
         <tr><td>Built-in ZIP, PDF, image, JSON modules</td><td>&#10060; No</td><td>&#9989; Yes</td></tr>
+        <tr><td>ExecutePython (run Python from VBScript)</td><td>&#10060; No</td><td>&#9989; Yes</td></tr>
     </tbody>
 </table>
 <p>ASPPY is not a workaround — it is a forward-compatible replacement engine that lets Classic ASP applications outlive the platform they were built on.</p>
