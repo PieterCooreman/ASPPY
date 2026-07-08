@@ -18,7 +18,7 @@ start "" "http://localhost:%PORT%"
 ::set ASP_PY_LOG=1 
 ::set ASP_PY_TRACE_REQUEST=1 
 set ASP_PY_CACHE_SIZE=1000
-python3 ASPPY/server.py 0.0.0.0 8080 www	
+python ASPPY/server.py 0.0.0.0 8080 www	
 
 endlocal
 
