@@ -15,11 +15,11 @@ Start every new app from `www_starter`.
 - Do not modify `www_starter\*.*`
 - Use ASPPY only
 - Do not add IIS requirements
-- Run the dev server on port `5000`
+- Run the dev server on port `8080`
 - After editing any included .asp file, restart the ASPPY server process to clear the in-memory ASP compilation cache
 
 ```bash
-python -m ASPPY.server 0.0.0.0 5000 www
+python -m ASPPY.server 0.0.0.0 8080 www
 ```
 
 ## Use One App Model Only
