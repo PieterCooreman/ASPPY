@@ -132,6 +132,22 @@ ASPPY isn't a proof of concept. It runs **production websites in the wild**, fro
       <p align="center">A full e-learning platform (courses, lessons, enrollments, user accounts) built with Classic ASP and SQLite on ASPPY - and it teaches you ASPPY itself.</p>
     </td>
   </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <a href="https://autonome.quickersite.com">
+        <img src="https://raw.githubusercontent.com/PieterCooreman/ASPPY/main/docs/screenshots/autonome.jpg" alt="Autonome - agentic CMS for fully autonomous AI-generated content built on ASPPY" />
+      </a>
+      <p align="center"><strong><a href="https://autonome.quickersite.com">autonome.quickersite.com</a></strong></p>
+      <p align="center">An agentic CMS where multiple AI models autonomously generate, review, and publish text, image, video, and interactive content around ongoing themes - a live "mirror" of an interest field, built on ASPPY.</p>
+    </td>
+    <td width="50%" valign="top">
+      <a href="https://snitz2026.quickersite.com">
+        <img src="https://raw.githubusercontent.com/PieterCooreman/ASPPY/main/docs/screenshots/snitz.jpg" alt="SnitzModern - a 2026 re-imagining of Snitz Forums 2000 built on ASPPY" />
+      </a>
+      <p align="center"><strong><a href="https://snitz2026.quickersite.com">snitz2026.quickersite.com</a></strong></p>
+      <p align="center">SnitzModern - a 2026 re-imagining of the classic Snitz Forums 2000 bulletin board, rebuilt from the ground up as a modern forum platform on ASPPY.</p>
+    </td>
+  </tr>
 </table>
 
 > Running your own site on ASPPY? Open an issue or PR to get it featured here.
