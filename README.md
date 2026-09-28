@@ -21,11 +21,29 @@ pip install asppy[all] --upgrade
 Put your `.asp` files in a folder - say `www` - and serve it:
 
 ```bash
-asppy 0.0.0.0 8080 www
+asppy localhost 8080 www
 ```
 
 Point your browser at `http://localhost:8080` and your `.asp` pages are live.
 
+Tip: In case you you want to fire up ASPPY from the same folder:
+
+```bash
+asppy localhost 8080 .
+```
+
+Easiest solution: create a `start.bat` file with that exact command and double-click it to start your ASPPY app from within the same folder.
+
+---
+
+## Vibe Coding Helps
+
+Refer any vibe coding tool to the built-in guides and docs:
+
+```bash
+asppy-guide --list
+asppy-guide developers.md
+```
 ---
 
 ## Presentation
