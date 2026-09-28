@@ -36,6 +36,24 @@ class JsonShim:
             raise VBScriptRuntimeError(f"JSON.Decode failed: {e}")
         return _from_json_value(raw)
 
+    def EscapeString(self, value):
+        if value is VBEmpty or value is VBNull or value is VBNothing or value is None:
+            return ""
+        s = vbs_cstr(value)
+        if s == "":
+            return ""
+        if ("\\" not in s and '"' not in s and "/" not in s
+                and "\r" not in s and "\n" not in s and "\t" not in s
+                and "\b" not in s and "\f" not in s):
+            return s
+        out = s.replace("\\", "\\u005C")
+        out = out.replace('"', "\\u0022")
+        out = out.replace("/", "\\u002F")
+        out = (out.replace("\r", "\\u000D").replace("\n", "\\u000A")
+                  .replace("\t", "\\u0009").replace("\b", "\\u0008")
+                  .replace("\f", "\\u000C"))
+        return _ESCAPE_CTRL_RE.sub(lambda m: "\\u%02X" % ord(m.group(0)), out)
+
 
 class ASPPYShim:
     _LAZY_ATTRS = ("zip", "image", "crypto", "pdf")
