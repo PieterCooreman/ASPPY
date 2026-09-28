@@ -8,31 +8,48 @@ And ASPPY is not just a framework on paper - it powers **real, live websites in 
 
 ---
 
-## Quick Start
+## Installation & Quick Start
 
-Install a recent version of Python (>=3.9) via https://www.python.org/downloads/
-
-Open a CMD window or use Powershell:
+**Prerequisite:** Python 3.9+ on any machine that runs ASPPY, server included — [python.org/downloads](https://www.python.org/downloads/).
 
 ```bash
-pip install asppy[all] --upgrade
+pip install "asppy[all]"     # runtime + all extras (pdf, image, crypto, odbc, xml)
 ```
 
-Put your `.asp` files in a folder - say `www` - and serve it:
+Minimal alternative: `pip install asppy` (zero third-party dependencies, SQLite works out of the box). Skipped extras don't break anything — the feature that needs one raises an error naming the package to install:
+
+| Extra | Installs | Enables |
+|---|---|---|
+| `pdf` | `pip install "asppy[pdf]"` | PDF generation (`fpdf2`) |
+| `image` | `pip install "asppy[image]"` | Image resize/crop/filter/watermark (`pillow`) |
+| `crypto` | `pip install "asppy[crypto]"` | bcrypt password hashing (`bcrypt`) |
+| `odbc` | `pip install "asppy[odbc]"` | ADODB via ODBC: Access, Excel, SQL Server, PostgreSQL, MySQL (`pyodbc`) |
+| `xml` | `pip install "asppy[xml]"` | MSXML XPath 1.0, XSLT, CDATA (`lxml`, `certifi`) |
+
+From source: `git clone https://github.com/PieterCooreman/ASPPY.git && cd ASPPY && pip install -e ".[all]"`.
+
+**Zero to running app:**
 
 ```bash
-asppy localhost 8080 www
+asppy-new myapp                  # starter scaffold: routing, SQLite, views wired up
+asppy 127.0.0.1 8080 myapp       # serve it → http://localhost:8080
 ```
 
-Point your browser at `http://localhost:8080` and your `.asp` pages are live.
+Already have `.asp` files? Serve the folder directly — `asppy localhost 8080 www`, or `asppy localhost 8080 .` from inside the folder (a `start.bat` with that line also works for double-click start). `asppy` defaults to `0.0.0.0 8080 web`; pass `::` as host for IPv6. On Windows, a source checkout also has clickable `start_www.bat`.
 
-Tip: In case you you want to fire up ASPPY from the same folder:
+**The five commands:**
 
-```bash
-asppy localhost 8080 .
-```
+| Command | What it does |
+|---|---|
+| `asppy-new myapp` | New app from the MVC starter — **start here** |
+| `asppy [host] [port] [docroot]` | Serve `.asp` pages over HTTP |
+| `asppy-render PAGE.asp` | Render one page offline (diffing, CI) — e.g. `asppy-render www/default.asp --query "id=42" --show-headers` |
+| `asppy-check FOLDER` | Render every `.asp` page, report failures (exit 1 — CI friendly) |
+| `asppy-guide` | Developer/agent brief; `--list` shows all bundled docs |
 
-Easiest solution: create a `start.bat` file with that exact command and double-click it to start your ASPPY app from within the same folder.
+Every command works as a module too (`python -m ASPPY 0.0.0.0 8080 www`).
+
+> No `.asp` files yet? The repo (not the PyPI package) ships `www_starter/` (MVC scaffold), `www/` (minimal welcome page) and `www_test/` (34-page conformance suite).
 
 ---
 
@@ -44,6 +61,7 @@ Refer any vibe coding tool to the built-in guides and docs:
 asppy-guide --list
 asppy-guide developers.md
 ```
+
 ---
 
 ## Presentation
@@ -169,103 +187,6 @@ ASPPY isn't a proof of concept. It runs **production websites in the wild**, fro
 </table>
 
 > Running your own site on ASPPY? Open an issue or PR to get it featured here.
-
----
-
-## Installation
-
-### Prerequisites
-
-**Python 3.9 or higher must be installed on your server** (Windows, Linux, or macOS).  
-Download Python at [https://www.python.org/downloads/](https://www.python.org/downloads/).
-
-> ASPPY is a Python application - Python is required on any machine that runs it, including your production hosting server.
-
-### Install from PyPI
-
-```bash
-pip install asppy
-```
-
-That's it. **The core runtime has zero third-party dependencies** - it runs on nothing but the Python standard library, and SQLite works out of the box.
-
-### Optional extras
-
-Some features reach for a third-party library. Each one is imported lazily and only by the feature that needs it, so you install just what your application actually uses:
-
-| Extra | Command | Enables |
-|---|---|---|
-| `pdf` | `pip install "asppy[pdf]"` | PDF generation (`fpdf2`) |
-| `image` | `pip install "asppy[image]"` | Image resize/crop/filter/watermark (`pillow`) |
-| `crypto` | `pip install "asppy[crypto]"` | bcrypt password hashing (`bcrypt`) |
-| `odbc` | `pip install "asppy[odbc]"` | ADODB via ODBC: Access, Excel, SQL Server, PostgreSQL, MySQL (`pyodbc`) |
-| `xml` | `pip install "asppy[xml]"` | MSXML full XPath 1.0, XSLT and CDATA (`lxml`, `certifi`) |
-| `all` | `pip install "asppy[all]"` | All of the above |
-
-> Skip an extra and the matching feature raises a clear error naming the package to install - nothing else breaks.
-
-### Install from source
-
-```bash
-git clone https://github.com/PieterCooreman/ASPPY.git
-cd ASPPY
-pip install -e ".[all]"
-```
-
----
-
-## Quick Start
-
-Put your `.asp` files in a folder - say `www` - and serve it:
-
-```bash
-asppy 0.0.0.0 8080 www
-```
-
-Point your browser at `http://localhost:8080` and your `.asp` pages are live.
-
-On Windows you can also just click `start_www.bat` in a source checkout.
-
-> No `.asp` files yet? The repo ships ready-to-run examples the PyPI package deliberately leaves out: [`www_starter/`](https://github.com/PieterCooreman/ASPPY/tree/main/www_starter) (an MVC scaffold to copy), [`www/`](https://github.com/PieterCooreman/ASPPY/tree/main/www) (a minimal welcome page) and [`www_test/`](https://github.com/PieterCooreman/ASPPY/tree/main/www_test) (the language conformance suite, 34 pages covering the whole VBScript surface).
-
-### The five commands
-
-| Command | What it does |
-|---|---|
-| `asppy-new myapp` | Create a new app from the MVC starter template - routing, SQLite, views and layout already wired up. **Start here.** |
-| `asppy [host] [port] [docroot]` | Serve a folder of `.asp` pages over HTTP. Defaults: `0.0.0.0 8080 web`. Pass `::` as host for IPv6. |
-| `asppy-render PAGE.asp` | Render one page to stdout or a file - no socket, no browser. Great for diffing output and CI. |
-| `asppy-check FOLDER` | Recursively render every `.asp` page in a folder and report the ones that fail, with file and line number. |
-| `asppy-guide` | Print the developer/agent brief. `asppy-guide --list` shows every bundled document. |
-
-Zero to running app, from a bare `pip install`:
-
-```bash
-asppy-new myapp
-asppy 127.0.0.1 8080 myapp
-```
-
-```bash
-# render a single page, with a query string and response headers
-asppy-render www/default.asp --query "id=42" --show-headers
-
-# render a protected page without logging in
-asppy-render www/admin.asp --docroot www --session authed=True
-
-# health-check a whole app (exit code 1 if anything fails - CI friendly)
-asppy-check www
-```
-
-Every command also works as a module, which is handy in `.bat` files, systemd units and Docker `CMD` lines:
-
-```bash
-python -m ASPPY 0.0.0.0 8080 www     # same as: asppy 0.0.0.0 8080 www
-python -m ASPPY.server 0.0.0.0 8080 www
-python -m ASPPY.cli www/default.asp
-python -m ASPPY.check www
-```
-
-From a source checkout, `python asppycli.py ...` and `python asppycheck.py ...` keep working exactly as before.
 
 ---
 
