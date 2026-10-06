@@ -306,6 +306,7 @@ h1 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; letter-spacing: -0.0
     <h2><i class="bi bi-lightbulb me-1"></i> What is this?</h2>
     <p>This prompt builder is designed for <strong>Single Page Applications (SPAs)</strong> where the frontend and backend are fully decoupled. The frontend is a <strong>React</strong> app that communicates with <strong>ASPPY-powered Classic ASP API endpoints</strong> over JSON. The ASP layer serves as a pure REST API &mdash; no server-side HTML rendering.</p>
     <p><strong>Architecture:</strong> React handles all routing and rendering in the browser. ASP files handle all data access, business logic, and JSON responses. SQLite is the database. Each project lives in a single flat folder containing four files.</p>
+    <p><strong>Setup:</strong> ASPPY is installed via <strong>pip</strong> — the agent must NOT assume a GitHub clone exists. Default to <code>pip install "asppy[all]"</code> on Python 3.9+, then scaffold with <code>asppy-new myapp</code> and serve with <code>asppy</code>. Only reference <code>www/</code>, <code>www_starter/</code>, <code>www_test/</code> if the agent is explicitly working from a source checkout.</p>
   </div>
 
   <!-- Architecture -->
@@ -318,6 +319,21 @@ h1 { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; letter-spacing: -0.0
   <span class="file">style.css</span>        <span class="comment">&larr; Application styles</span>
   <span class="file">api.asp</span>          <span class="comment">&larr; ASPPY API endpoint (routes, JSON responses)</span>
     </div>
+  </div>
+
+  <!-- ASPPY Setup -->
+  <div class="pb-card">
+    <h2><i class="bi bi-box-seam me-1"></i> ASPPY Environment Setup</h2>
+    <p>How will the AI agent install and run ASPPY? <strong>pip install is the default</strong> — no GitHub download required. Only choose source checkout if the repo is already cloned.</p>
+    <div class="pb-radio-group" id="setup-group" role="radiogroup" aria-label="ASPPY setup method" style="margin-bottom:0.75rem">
+      <input type="radio" name="setup" id="setup-pipfull" value="pipfull" checked>
+      <label for="setup-pipfull">pip full (Recommended)</label>
+      <input type="radio" name="setup" id="setup-pipmin" value="pipmin">
+      <label for="setup-pipmin">pip minimal</label>
+      <input type="radio" name="setup" id="setup-source" value="source">
+      <label for="setup-source">Source checkout</label>
+    </div>
+    <p id="setup-hint" style="font-size:0.82rem;margin-bottom:0">Prerequisite: <strong>Python 3.9+</strong> (python.org/downloads). Full install: <code>pip install "asppy[all]"</code> — runtime + all extras (pdf, image, crypto, odbc, xml). Minimal: <code>pip install asppy</code> (zero third-party deps, SQLite works out of the box).</p>
   </div>
 
   <!-- App Topic -->
@@ -464,6 +480,19 @@ function val(id) { return document.getElementById(id).value.trim(); }
 function chk(id) { return document.getElementById(id).checked; }
 function css() { return document.querySelector('input[name="css"]:checked').value; }
 function reactLoad() { return document.querySelector('input[name="reactload"]:checked').value; }
+function setupMode() { var el = document.querySelector('input[name="setup"]:checked'); return el ? el.value : 'pipfull'; }
+
+// Dynamic hint for setup method
+document.querySelectorAll('input[name="setup"]').forEach(function(r) {
+  r.addEventListener('change', function() {
+    var hint = document.getElementById('setup-hint');
+    if (!hint) return;
+    var m = setupMode();
+    if (m === 'pipmin') hint.innerHTML = 'Prerequisite: <strong>Python 3.9+</strong>. Minimal install: <code>pip install asppy</code> (zero third-party deps, SQLite works out of the box). Add extras only when needed: <code>pip install "asppy[pdf]"</code>, <code>"asppy[image]"</code>, <code>"asppy[crypto]"</code>, <code>"asppy[odbc]"</code>, <code>"asppy[xml]"</code>.';
+    else if (m === 'source') hint.innerHTML = 'Source checkout (advanced): <code>git clone https://github.com/PieterCooreman/ASPPY.git &amp;&amp; cd ASPPY &amp;&amp; pip install -e ".[all]"</code>. Only the repo ships <code>www_starter/</code> (MVC scaffold), <code>www/</code> (welcome page) and <code>www_test/</code> (conformance suite). Has clickable <code>start_www.bat</code> on Windows.';
+    else hint.innerHTML = 'Prerequisite: <strong>Python 3.9+</strong> (python.org/downloads). Full install: <code>pip install "asppy[all]"</code> — runtime + all extras (pdf, image, crypto, odbc, xml). Minimal: <code>pip install asppy</code> (zero third-party deps, SQLite works out of the box).';
+  });
+});
 
 function generate() {
   var topic = val('topic');
@@ -490,6 +519,37 @@ function generate() {
   };
 
   if (val('appname')) prompt["app_name"] = val('appname');
+  if (features.length) prompt["requested_features"] = features;
+  if (val('extra')) prompt["additional_instructions"] = val('extra');
+
+  var setupVal = setupMode();
+  var installCmd = setupVal === 'pipmin'
+    ? 'pip install asppy'
+    : setupVal === 'source'
+      ? 'git clone https://github.com/PieterCooreman/ASPPY.git && cd ASPPY && pip install -e ".[all]"'
+      : 'pip install "asppy[all]"';
+
+  prompt["environment_setup"] = {
+    "prerequisite": "Python 3.9+ on any machine that runs ASPPY, server included — python.org/downloads",
+    "do_not_assume_repo_clone": "Do NOT assume the ASPPY GitHub repo is downloaded. Default to pip install. Only use www/, www_starter/, www_test/ paths if working from a source checkout.",
+    "install_command": installCmd,
+    "install_notes": setupVal === 'pipmin'
+      ? "Minimal install: zero third-party dependencies, SQLite works out of the box. If a feature needs a missing extra, ASPPY raises an error naming the package — then run pip install \"asppy[pdf]\" / [image] / [crypto] / [odbc] / [xml] as needed."
+      : setupVal === 'source'
+        ? "Source install for contributors. Only the repo (not the PyPI package) ships www_starter/ (MVC scaffold), www/ (minimal welcome page) and www_test/ (34-page conformance suite)."
+        : "Full install (recommended): runtime + all extras. Skipped extras don't break anything — the feature that needs one raises an error naming the package to install.",
+    "extras_table": "pdf -> pip install \"asppy[pdf]\" (fpdf2); image -> pip install \"asppy[image]\" (pillow); crypto -> pip install \"asppy[crypto]\" (bcrypt, needed for login hashing); odbc -> pip install \"asppy[odbc]\" (pyodbc: Access/Excel/SQL Server/PostgreSQL/MySQL); xml -> pip install \"asppy[xml]\" (lxml, certifi)",
+    "scaffold_or_serve": "No .asp files yet? Run: asppy-new myapp, then: asppy 127.0.0.1 8080 myapp. Already have .asp files? Serve the folder directly: asppy localhost 8080 www, or asppy localhost 8080 . from inside the folder. Defaults to 0.0.0.0 8080 web; pass :: as host for IPv6.",
+    "five_commands": {
+      "asppy-new myapp": "New app from the MVC starter — start here",
+      "asppy [host] [port] [docroot]": "Serve .asp pages over HTTP",
+      "asppy-render PAGE.asp": "Render one page offline (diffing, CI) — e.g. asppy-render www/default.asp --query \"id=42\" --show-headers",
+      "asppy-check FOLDER": "Render every .asp page, report failures (exit 1 — CI friendly)",
+      "asppy-guide": "Developer/agent brief; --list shows all bundled docs"
+    },
+    "module_fallback": "Every command works as a module too: python -m ASPPY 0.0.0.0 8080 www",
+    "agent_brief": "Run asppy-guide --list, then read asppy-guide developers.md (and the bundled docs) before coding. Refer the coding agent to these built-in guides."
+  };
 
   prompt["architecture"] = {
     "type": "Single Page Application (SPA)",
@@ -535,20 +595,22 @@ function generate() {
     "Always use ASPPY.JSON.Encode() like this: 'Response.Write ASPPY.JSON.Encode(arrItems)' — it handles quoting, escaping, and array/object structure correctly. Pass True as second arg for pretty-printing: 'ASPPY.JSON.Encode(data, True)'",
     "Never return HTML from the API",
     "Session handling: use Session(key) for session state; supported on session routes only",
-    "Use ADODB for SQLite database access",
+    "Use ADODB for SQLite database access (works with minimal pip install, no extra needed)",
+    "If login/auth needs bcrypt, ensure crypto extra is installed: pip install \"asppy[crypto]\" (full asppy[all] already includes it)",
     "Use SqlEscape() for all user-supplied values in SQL",
     "Validate all input before database operations",
     "Return proper HTTP status codes (200, 201, 400, 404, 500)"
   ];
 
   prompt["hard_rules"] = [
-    "Build inside the www directory",
-    "Do not modify ASPPY/*.py runtime files",
+    "Install ASPPY via pip (see environment_setup.install_command) — do NOT require a git clone unless setup is 'source'",
+    "Do not modify the installed ASPPY package files (*.py runtime) — only edit project files",
     "Use ASPPY only, do not add IIS requirements",
-    "Run dev server on port 8080",
+    "Scaffold new apps with asppy-new myapp, or serve an existing folder directly with asppy [host] [port] [docroot]",
+    "Run dev server on port 8080 (e.g. asppy 127.0.0.1 8080 myapp)",
     "No server restart needed after editing api.asp: ASPPY detects file changes automatically and recompiles on the next request",
     "All four project files (index.html, script.js, style.css, api.asp) must be in the same folder",
-    "The ASPPY server serves the www directory, place the project folder inside www"
+    "Consult asppy-guide developers.md (via asppy-guide --list) when unsure about ASP/VBScript semantics"
   ];
 
   prompt["api_asp_structure"] = {
@@ -573,6 +635,7 @@ function generate() {
   };
 
   prompt["common_mistakes_to_avoid"] = [
+    "Do NOT assume the ASPPY GitHub repo is cloned — use the pip install + asppy CLI flow from environment_setup",
     "Do not generate server-side HTML in ASP for the SPA pages",
     "Do not write output before Response.ContentType or Response.Redirect",
     "Do not concatenate raw request values into SQL, use SqlEscape()",
@@ -584,25 +647,27 @@ function generate() {
   ];
 
   prompt["development_workflow"] = [
-    "1. Create the project folder inside www/",
-    "2. Create api.asp with database setup action and core API routes",
-    "3. Create index.html with React mount point and CDN links (or Vite setup)",
-    "4. Create style.css with application styles",
-    "5. Create script.js with all React components and fetch() calls",
-    "6. Start server: python -m ASPPY.server 0.0.0.0 8080 www",
-    "7. Call the /setup action once to initialize the database",
-    "8. Open the app in browser and test all API endpoints",
-    "9. Verify React renders correctly and all fetch calls succeed"
+    "1. Ensure Python 3.9+ and install ASPPY: " + installCmd,
+    "2. Scaffold or place files: asppy-new myapp for new apps, or create the project folder with index.html, script.js, style.css, api.asp",
+    "3. Create api.asp with database setup action and core API routes",
+    "4. Create index.html with React mount point and CDN links (or Vite setup)",
+    "5. Create style.css with application styles",
+    "6. Create script.js with all React components and fetch() calls",
+    "7. Start server: asppy 127.0.0.1 8080 myapp (or: asppy localhost 8080 www / asppy localhost 8080 . from inside the folder; module fallback: python -m ASPPY 0.0.0.0 8080 www)",
+    "8. Call the /setup action once to initialize the database",
+    "9. Verify with asppy-check FOLDER and asppy-render PAGE.asp --query \"id=42\" before manual browser testing",
+    "10. Open the app in browser and test all API endpoints; verify React renders and all fetch calls succeed"
   ];
 
   prompt["final_checklist"] = [
+    "Python 3.9+ and ASPPY installed via pip (no repo clone assumed unless source setup)",
     "All four files exist in a single folder: index.html, script.js, style.css, api.asp",
     "index.html loads React and mounts the app",
     "script.js contains all React components with fetch() to api.asp",
     "api.asp returns only JSON, no HTML rendering",
     "SQLite database is created via a /setup action",
     "All API calls include proper error handling on the React side",
-    "No ASPPY runtime files were modified",
+    "No installed ASPPY package files were modified",
     "App loads and functions in the browser at localhost:8080"
   ];
 
